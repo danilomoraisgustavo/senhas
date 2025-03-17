@@ -1,0 +1,134 @@
+/* display.css */
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+
+/* Paleta e estilos gerais */
+:root {
+    --blue: #0062cc;
+    --green: #00cc88;
+    --light-bg: #f6f5f7;
+    --text-dark: #333;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Montserrat', sans-serif;
+    background: var(--light-bg);
+    box-sizing: border-box;
+}
+
+.display-container {
+    min-height: 100vh;
+}
+
+/* Botão fixado para habilitar som */
+.som-fixado {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 999;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Classe adicionada via JS para sumir com transição */
+.som-escondido {
+    transform: translateY(-50px);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* SENHA ATUAL */
+.current-password {
+    position: relative;
+    border-radius: 12px;
+    color: #fff;
+    background: url("https://files.cercomp.ufg.br/weby/up/1442/o/Transporte_escolar.jpg?1715017159") no-repeat center center;
+    background-size: cover;
+    overflow: hidden;
+}
+
+.current-password::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+    opacity: 0.9;
+    z-index: 0;
+}
+
+.current-password .card-body {
+    position: relative;
+    z-index: 1;
+}
+
+.current-password h2 {
+    font-size: 4rem;
+    font-weight: bold;
+}
+
+.senha-numero {
+    font-size: 8rem;
+    font-weight: 900;
+    color: #fff;
+}
+
+#salaInfo {
+    font-size: 3rem;
+    font-weight: 600;
+}
+
+/* Carousel */
+#carouselInformativo .carousel-item img {
+    height: 600px;
+    object-fit: cover;
+}
+
+/* ULTIMAS SENHAS (3 QUADROS) */
+.ultima-senha-card {
+    border-radius: 12px;
+    min-height: 200px;
+}
+
+.ultima-senha-card .tipo-ultima-senha {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--blue);
+}
+
+.ultima-senha-card .numero-ultima-senha {
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.ultima-senha-card .sala-ultima-senha {
+    font-size: 2rem;
+    color: #666;
+}
+
+/* Barra Inferior */
+.bottom-bar {
+    border-radius: 12px;
+    margin: 0 -15px;
+    height: 150px;
+}
+
+.bottom-bar>div {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+}
+
+/* Responsividade simples */
+@media (max-width: 768px) {
+    .senha-numero {
+        font-size: 3rem;
+    }
+
+    .ultima-senha-card .numero-ultima-senha {
+        font-size: 2rem;
+    }
+
+    #carouselInformativo .carousel-item img {
+        height: 250px;
+    }
+}

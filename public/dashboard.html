@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>PyDen Senhas - Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+
+<body>
+    <header>
+        <h1>PyDen Senhas - Dashboard</h1>
+        <nav>
+            <ul>
+                <li><a href="#" id="btnChamarSenha">Chamar Senha</a></li>
+                <li><a href="#" id="btnCadastrarSenha">Cadastrar Senha</a></li>
+                <li><a href="/logout">Sair</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Seção para chamar a próxima senha -->
+    <section id="chamarSenhaSection" class="section-active">
+        <h2>Chamar Próxima Senha</h2>
+        <div class="buttons-container">
+            <button class="btn-chamar" id="chamarNormal">Chamar Senha Normal</button>
+            <button class="btn-chamar" id="chamarPreferencial">Chamar Senha Preferencial</button>
+        </div>
+        <div id="lastCalledContainer">
+            <h3>Última senha chamada:</h3>
+            <p id="lastCalled">Nenhuma ainda</p>
+        </div>
+    </section>
+
+    <!-- Seção para cadastrar senhas em intervalo -->
+    <section id="cadastrarSenhaSection" class="section-hidden">
+        <h2>Cadastrar Intervalo de Senhas</h2>
+        <form id="formCadastroSenhas" action="/cadastrar-senha" method="POST">
+            <label for="tipo">Tipo da Senha:</label>
+            <select name="tipo" id="tipo" required>
+                <option value="">Selecione</option>
+                <option value="N">Normal</option>
+                <option value="P">Preferencial</option>
+            </select>
+
+            <label for="rangeInicio">Número inicial:</label>
+            <input type="number" name="rangeInicio" id="rangeInicio" required />
+
+            <label for="rangeFim">Número final:</label>
+            <input type="number" name="rangeFim" id="rangeFim" required />
+
+            <button type="submit">Cadastrar Intervalo</button>
+        </form>
+        <div id="msgCadastro"></div>
+    </section>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>
