@@ -86,7 +86,7 @@ body {
 /* ULTIMAS SENHAS (3 QUADROS) */
 .ultima-senha-card {
     border-radius: 12px;
-    min-height: 350px;
+    min-height: 330px;
 }
 
 .ultima-senha-card .tipo-ultima-senha {
