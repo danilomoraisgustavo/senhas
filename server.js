@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
@@ -60,8 +61,6 @@ function checkAuth(req, res, next) {
 // Rota de cadastro de usuário (retorna JSON)
 app.post('/register', (req, res) => {
     const { nomeCompleto, email, senha, sala, mesa } = req.body;
-
-    // Verifica se o email já existe
     db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
         if (err) {
             return res.json({ success: false, message: 'Erro ao verificar e-mail.' });
@@ -69,25 +68,23 @@ app.post('/register', (req, res) => {
         if (row) {
             return res.json({ success: false, message: 'E-mail já cadastrado!' });
         }
-        // Se não existir, insere novo usuário
         db.run(`
             INSERT INTO users (nomeCompleto, email, senha, sala, mesa)
             VALUES (?, ?, ?, ?, ?)
         `,
-            [nomeCompleto, email, senha, sala, mesa],
-            function (err) {
-                if (err) {
-                    return res.json({ success: false, message: 'Erro ao cadastrar usuário.' });
-                }
-                return res.json({ success: true, message: 'Usuário cadastrado com sucesso!' });
-            });
+        [nomeCompleto, email, senha, sala, mesa],
+        function(err) {
+            if (err) {
+                return res.json({ success: false, message: 'Erro ao cadastrar usuário.' });
+            }
+            return res.json({ success: true, message: 'Usuário cadastrado com sucesso!' });
+        });
     });
 });
 
 // Rota de login (retorna JSON)
 app.post('/login', (req, res) => {
     const { email, senha } = req.body;
-
     db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
         if (err) {
             return res.json({ success: false, message: 'Erro ao acessar o banco de dados.' });
@@ -98,8 +95,6 @@ app.post('/login', (req, res) => {
         if (row.senha !== senha) {
             return res.json({ success: false, message: 'Senha incorreta.' });
         }
-
-        // Armazena ID do usuário na sessão
         req.session.userId = row.id;
         return res.json({
             success: true,
@@ -128,50 +123,41 @@ app.get('/display', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
-// Rota para cadastrar intervalo de senhas (usa transação para evitar inserções fora de ordem)
+// Rota para cadastrar senha única
 app.post('/cadastrar-senha', checkAuth, (req, res) => {
-    const { tipo, rangeInicio, rangeFim } = req.body;
+    const { tipo, numero } = req.body;
     if (!tipo || !['N', 'P'].includes(tipo)) {
         return res.json({ mensagem: 'Tipo inválido.' });
     }
 
-    const inicio = parseInt(rangeInicio, 10);
-    const fim = parseInt(rangeFim, 10);
-
-    if (isNaN(inicio) || isNaN(fim) || inicio <= 0 || fim <= 0 || fim < inicio) {
-        return res.json({ mensagem: 'Intervalo inválido.' });
+    const num = parseInt(numero, 10);
+    if (isNaN(num) || num <= 0) {
+        return res.json({ mensagem: 'Número inválido.' });
     }
 
-    db.serialize(() => {
-        db.run('BEGIN');
-
-        for (let i = inicio; i <= fim; i++) {
-            db.run(`INSERT INTO senhas (tipo, numero) VALUES (?, ?)`, [tipo, i]);
+    db.run(
+        `INSERT INTO senhas (tipo, numero) VALUES (?, ?)`,
+        [tipo, num],
+        function(err) {
+            if (err) {
+                return res.json({ mensagem: 'Erro ao cadastrar senha.' });
+            }
+            return res.json({ mensagem: `Senha cadastrada: ${tipo}${num}` });
         }
-
-        db.run('COMMIT');
-    });
-
-    return res.json({
-        mensagem: `Cadastrado intervalo de ${tipo} ${inicio} até ${fim}. Total: ${fim - inicio + 1} senhas.`
-    });
+    );
 });
 
 // Rota para chamar a próxima senha
 app.post('/chamar-senha', checkAuth, (req, res) => {
     const { tipo } = req.body;
-    if (!tipo || !['N', 'P'].includes(tipo)) {
+    if (!tipo || !['N','P'].includes(tipo)) {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
     }
-
-    // Primeiro pega os dados de sala e mesa do usuário logado
     const userId = req.session.userId;
     db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
         if (errUser || !userRow) {
             return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
         }
-
-        // Agora busca a senha não chamada mais antiga
         db.get(`
             SELECT * FROM senhas
             WHERE tipo = ? AND chamada = 0
@@ -184,7 +170,6 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
             if (!row) {
                 return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
             }
-
             db.run(`UPDATE senhas SET chamada = 1 WHERE id = ?`, [row.id], (err2) => {
                 if (err2) {
                     return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
@@ -195,7 +180,6 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
                     sala: userRow.sala,
                     mesa: userRow.mesa
                 };
-
                 io.emit('senhaChamada', senhaChamada);
                 return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
             });

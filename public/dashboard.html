@@ -1,12 +1,11 @@
+<!-- dashboard.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8" />
     <title>PyDen Senhas - Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css" />
 </head>
-
 <body>
     <header>
         <h1>PyDen Senhas - Dashboard</h1>
@@ -32,9 +31,9 @@
         </div>
     </section>
 
-    <!-- Seção para cadastrar senhas em intervalo -->
+    <!-- Seção para cadastrar senhas individualmente -->
     <section id="cadastrarSenhaSection" class="section-hidden">
-        <h2>Cadastrar Intervalo de Senhas</h2>
+        <h2>Cadastrar Senha Única</h2>
         <form id="formCadastroSenhas" action="/cadastrar-senha" method="POST">
             <label for="tipo">Tipo da Senha:</label>
             <select name="tipo" id="tipo" required>
@@ -43,13 +42,10 @@
                 <option value="P">Preferencial</option>
             </select>
 
-            <label for="rangeInicio">Número inicial:</label>
-            <input type="number" name="rangeInicio" id="rangeInicio" required />
+            <label for="numero">Número da Senha:</label>
+            <input type="number" name="numero" id="numero" required />
 
-            <label for="rangeFim">Número final:</label>
-            <input type="number" name="rangeFim" id="rangeFim" required />
-
-            <button type="submit">Cadastrar Intervalo</button>
+            <button type="submit">Cadastrar Senha</button>
         </form>
         <div id="msgCadastro"></div>
     </section>
@@ -57,5 +53,4 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
-
 </html>
