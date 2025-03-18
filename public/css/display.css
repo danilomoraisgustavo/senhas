@@ -79,14 +79,14 @@ body {
 
 /* Carousel */
 #carouselInformativo .carousel-item img {
-    height: 600px;
+    min-height: 500px;
     object-fit: cover;
 }
 
 /* ULTIMAS SENHAS (3 QUADROS) */
 .ultima-senha-card {
     border-radius: 12px;
-    min-height: 200px;
+    min-height: 350px;
 }
 
 .ultima-senha-card .tipo-ultima-senha {
@@ -114,7 +114,7 @@ body {
 }
 
 .bottom-bar>div {
-    font-size: 1.2rem;
+    font-size: 2rem;
     color: var(--text-dark);
 }
 
