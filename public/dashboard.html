@@ -13,6 +13,7 @@
             <ul>
                 <li><a href="#" id="btnChamarSenha">Chamar Senha</a></li>
                 <li><a href="#" id="btnCadastrarSenha">Cadastrar Senha</a></li>
+                <li><a href="#" id="btnGerenciarBD">Gerenciar Banco</a></li>
                 <li><a href="/logout">Sair</a></li>
             </ul>
         </nav>
@@ -49,6 +50,15 @@
             <button type="submit">Cadastrar Senha</button>
         </form>
         <div id="msgCadastro"></div>
+    </section>
+
+    <!-- Seção para gerenciar banco de dados -->
+    <section id="gerenciarBDSection" class="section-hidden">
+        <h2>Gerenciar Banco de Dados</h2>
+        <div class="buttons-container">
+            <button class="btn-chamar" id="limparSenhas">Limpar Tabela de Senhas</button>
+        </div>
+        <div id="dbMessageContainer"></div>
     </section>
 
     <script src="/socket.io/socket.io.js"></script>

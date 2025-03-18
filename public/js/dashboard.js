@@ -1,14 +1,22 @@
 // dashboard.js
 const btnChamarSenha = document.getElementById('btnChamarSenha');
 const btnCadastrarSenha = document.getElementById('btnCadastrarSenha');
+const btnGerenciarBD = document.getElementById('btnGerenciarBD');
+
 const chamarSenhaSection = document.getElementById('chamarSenhaSection');
 const cadastrarSenhaSection = document.getElementById('cadastrarSenhaSection');
+const gerenciarBDSection = document.getElementById('gerenciarBDSection');
+
 const chamarNormalBtn = document.getElementById('chamarNormal');
 const chamarPreferencialBtn = document.getElementById('chamarPreferencial');
 const chamarUltimaBtn = document.getElementById('chamarUltima');
+
 const lastCalledElement = document.getElementById('lastCalled');
 const formCadastro = document.getElementById('formCadastroSenhas');
 const msgCadastro = document.getElementById('msgCadastro');
+
+const limparSenhasBtn = document.getElementById('limparSenhas');
+const dbMessageContainer = document.getElementById('dbMessageContainer');
 
 // Socket.io
 const socket = io();
@@ -21,6 +29,9 @@ btnChamarSenha.addEventListener('click', (e) => {
 
     cadastrarSenhaSection.classList.add('section-hidden');
     cadastrarSenhaSection.classList.remove('section-active');
+
+    gerenciarBDSection.classList.add('section-hidden');
+    gerenciarBDSection.classList.remove('section-active');
 });
 
 btnCadastrarSenha.addEventListener('click', (e) => {
@@ -30,6 +41,21 @@ btnCadastrarSenha.addEventListener('click', (e) => {
 
     chamarSenhaSection.classList.add('section-hidden');
     chamarSenhaSection.classList.remove('section-active');
+
+    gerenciarBDSection.classList.add('section-hidden');
+    gerenciarBDSection.classList.remove('section-active');
+});
+
+btnGerenciarBD.addEventListener('click', (e) => {
+    e.preventDefault();
+    gerenciarBDSection.classList.add('section-active');
+    gerenciarBDSection.classList.remove('section-hidden');
+
+    chamarSenhaSection.classList.add('section-hidden');
+    chamarSenhaSection.classList.remove('section-active');
+
+    cadastrarSenhaSection.classList.add('section-hidden');
+    cadastrarSenhaSection.classList.remove('section-active');
 });
 
 /* Botão Chamar Senha Normal */
@@ -101,6 +127,19 @@ formCadastro.addEventListener('submit', (e) => {
     .then(data => {
         msgCadastro.textContent = data.mensagem || '';
         formCadastro.reset();
+    })
+    .catch(err => console.error(err));
+});
+
+/* Botão para limpar tabela de senhas */
+limparSenhasBtn.addEventListener('click', () => {
+    fetch('/limpar-senhas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        dbMessageContainer.textContent = data.mensagem || 'Sem resposta.';
     })
     .catch(err => console.error(err));
 });

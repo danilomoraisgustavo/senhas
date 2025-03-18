@@ -153,7 +153,6 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
     }
     const userId = req.session.userId;
-    // Busca a mais antiga não chamada
     db.get(`
         SELECT * FROM senhas
         WHERE tipo = ? AND chamada = 0
@@ -190,7 +189,6 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
 // Rota para rechamar a última senha que o usuário chamou
 app.post('/rechamar-senha', checkAuth, (req, res) => {
     const userId = req.session.userId;
-    // Busca a senha mais recente que foi chamada por este usuário
     db.get(`
         SELECT senhas.*, users.sala, users.mesa
         FROM senhas
@@ -215,6 +213,15 @@ app.post('/rechamar-senha', checkAuth, (req, res) => {
         io.emit('senhaChamada', senhaChamada);
         return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
     });
+});
+
+// Rota para limpar a tabela de senhas
+app.post('/limpar-senhas', checkAuth, (req, res) => {
+    db.serialize(() => {
+        db.run(`DELETE FROM senhas`);
+        db.run(`DELETE FROM sqlite_sequence WHERE name='senhas'`);
+    });
+    return res.json({ mensagem: 'Tabela de senhas limpa com sucesso!' });
 });
 
 // Rota raiz (login/cadastro)
