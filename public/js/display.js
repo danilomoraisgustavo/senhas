@@ -17,7 +17,7 @@ btnSom.addEventListener('click', () => {
     btnSom.classList.add('som-escondido'); // Adiciona a classe para animar e esconder o botão
 });
 
-// Função para atualizar data/hora
+// Atualiza data/hora
 function atualizarDataHora() {
     const agora = new Date();
     const dia = agora.toLocaleDateString('pt-BR');
@@ -47,15 +47,16 @@ socket.on('senhaChamada', (data) => {
         tipoSenhaTitulo.textContent = 'ATEND. NORMAL';
     }
 
-    // Exibe número e sala
+    // Exibe número e sala | mesa
     senhaNumeroElement.textContent = data.numero;
-    salaInfoElement.textContent = `SALA ${data.sala || '?'}`;
+    salaInfoElement.textContent = `SALA ${data.sala || '?'} | MESA ${data.mesa || '?'}`;
 
     // Adiciona ao array das últimas senhas (no início)
     ultimasSenhas.unshift({
         tipo: tipoSenhaTitulo.textContent,
         numero: data.numero,
-        sala: data.sala || '?'
+        sala: data.sala || '?',
+        mesa: data.mesa || '?'
     });
 
     // Mantém apenas as 3 últimas
@@ -64,14 +65,14 @@ socket.on('senhaChamada', (data) => {
     // Atualiza os 3 cards no DOM
     ultimaSenhaCards.forEach((card, index) => {
         if (ultimasSenhas[index]) {
-            const { tipo, numero, sala } = ultimasSenhas[index];
+            const { tipo, numero, sala, mesa } = ultimasSenhas[index];
             card.querySelector('.tipo-ultima-senha').textContent = tipo;
             card.querySelector('.numero-ultima-senha').textContent = numero;
-            card.querySelector('.sala-ultima-senha').textContent = `SALA ${sala}`;
+            card.querySelector('.sala-ultima-senha').textContent = `SALA ${sala} | MESA ${mesa}`;
         } else {
             card.querySelector('.tipo-ultima-senha').textContent = '---';
             card.querySelector('.numero-ultima-senha').textContent = '---';
-            card.querySelector('.sala-ultima-senha').textContent = 'SALA ---';
+            card.querySelector('.sala-ultima-senha').textContent = 'SALA --- | MESA ---';
         }
     });
 });
