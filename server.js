@@ -31,8 +31,7 @@ db.run(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo TEXT NOT NULL,      -- 'N' para normal, 'P' para preferencial
     numero INTEGER NOT NULL, -- número sequencial da senha
-    chamada INTEGER NOT NULL DEFAULT 0, -- 0 = não chamada, 1 = chamada
-    chamadoPor INTEGER       -- guarda o ID do usuário que chamou
+    chamada INTEGER NOT NULL DEFAULT 0 -- 0 = não chamada, 1 = chamada
   )
 `);
 
@@ -130,10 +129,12 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
     if (!tipo || !['N', 'P'].includes(tipo)) {
         return res.json({ mensagem: 'Tipo inválido.' });
     }
+
     const num = parseInt(numero, 10);
     if (isNaN(num) || num <= 0) {
         return res.json({ mensagem: 'Número inválido.' });
     }
+
     db.run(
         `INSERT INTO senhas (tipo, numero) VALUES (?, ?)`,
         [tipo, num],
@@ -153,24 +154,23 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
     }
     const userId = req.session.userId;
-    // Busca a mais antiga não chamada
-    db.get(`
-        SELECT * FROM senhas
-        WHERE tipo = ? AND chamada = 0
-        ORDER BY id ASC
-        LIMIT 1
-    `, [tipo], (err, row) => {
-        if (err) {
-            return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
+    db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
+        if (errUser || !userRow) {
+            return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
         }
-        if (!row) {
-            return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
-        }
-        db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
-            if (errUser || !userRow) {
-                return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
+        db.get(`
+            SELECT * FROM senhas
+            WHERE tipo = ? AND chamada = 0
+            ORDER BY id ASC
+            LIMIT 1
+        `, [tipo], (err, row) => {
+            if (err) {
+                return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
             }
-            db.run(`UPDATE senhas SET chamada = 1, chamadoPor = ? WHERE id = ?`, [userId, row.id], (err2) => {
+            if (!row) {
+                return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
+            }
+            db.run(`UPDATE senhas SET chamada = 1 WHERE id = ?`, [row.id], (err2) => {
                 if (err2) {
                     return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
                 }
@@ -184,36 +184,6 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
                 return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
             });
         });
-    });
-});
-
-// Rota para rechamar a última senha que o usuário chamou
-app.post('/rechamar-senha', checkAuth, (req, res) => {
-    const userId = req.session.userId;
-    // Busca a senha mais recente que foi chamada por este usuário
-    db.get(`
-        SELECT senhas.*, users.sala, users.mesa
-        FROM senhas
-        JOIN users
-        ON users.id = ?
-        WHERE senhas.chamadoPor = ?
-        ORDER BY senhas.id DESC
-        LIMIT 1
-    `, [userId, userId], (err, row) => {
-        if (err) {
-            return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
-        }
-        if (!row) {
-            return res.json({ sucesso: false, mensagem: 'Você ainda não chamou nenhuma senha.' });
-        }
-        const senhaChamada = {
-            tipo: row.tipo,
-            numero: row.numero,
-            sala: row.sala,
-            mesa: row.mesa
-        };
-        io.emit('senhaChamada', senhaChamada);
-        return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
     });
 });
 
