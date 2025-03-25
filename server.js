@@ -152,7 +152,7 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
    NOVA ROTA PARA GERAR SENHA AUTOMÁTICA + IMPRIMIR via SPOOLER
    (usando "printer" em vez de acesso USB direto)
 */
-app.post('/gerar-senha', checkAuth, (req, res) => {
+app.post('/gerar-senha', (req, res) => {
     const { tipo } = req.body;
     if (!tipo || !['N', 'P'].includes(tipo)) {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
