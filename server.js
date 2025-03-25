@@ -7,6 +7,9 @@ const session = require('express-session');
 const http = require('http');
 const socketIO = require('socket.io');
 
+// Para imprimir via spooler do Windows (ou do sistema)
+const printer = require('printer'); // npm install printer
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
@@ -69,17 +72,16 @@ app.post('/register', (req, res) => {
         if (row) {
             return res.json({ success: false, message: 'E-mail já cadastrado!' });
         }
-        db.run(`
-            INSERT INTO users (nomeCompleto, email, senha, sala, mesa)
-            VALUES (?, ?, ?, ?, ?)
-        `,
-        [nomeCompleto, email, senha, sala, mesa],
-        function(err) {
-            if (err) {
-                return res.json({ success: false, message: 'Erro ao cadastrar usuário.' });
-            }
-            return res.json({ success: true, message: 'Usuário cadastrado com sucesso!' });
-        });
+        db.run(
+            `INSERT INTO users (nomeCompleto, email, senha, sala, mesa)
+             VALUES (?, ?, ?, ?, ?)`,
+            [nomeCompleto, email, senha, sala, mesa],
+            function (err) {
+                if (err) {
+                    return res.json({ success: false, message: 'Erro ao cadastrar usuário.' });
+                }
+                return res.json({ success: true, message: 'Usuário cadastrado com sucesso!' });
+            });
     });
 });
 
@@ -124,7 +126,7 @@ app.get('/display', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
-// Rota para cadastrar senha única
+// Rota antiga para cadastrar senha manual (mantida para não omitir nada)
 app.post('/cadastrar-senha', checkAuth, (req, res) => {
     const { tipo, numero } = req.body;
     if (!tipo || !['N', 'P'].includes(tipo)) {
@@ -137,7 +139,7 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
     db.run(
         `INSERT INTO senhas (tipo, numero) VALUES (?, ?)`,
         [tipo, num],
-        function(err) {
+        function (err) {
             if (err) {
                 return res.json({ mensagem: 'Erro ao cadastrar senha.' });
             }
@@ -146,44 +148,121 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
     );
 });
 
-// Rota para chamar a próxima senha
-app.post('/chamar-senha', checkAuth, (req, res) => {
+/* 
+   NOVA ROTA PARA GERAR SENHA AUTOMÁTICA + IMPRIMIR via SPOOLER
+   (usando "printer" em vez de acesso USB direto)
+*/
+app.post('/gerar-senha', checkAuth, (req, res) => {
     const { tipo } = req.body;
-    if (!tipo || !['N','P'].includes(tipo)) {
+    if (!tipo || !['N', 'P'].includes(tipo)) {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
     }
-    const userId = req.session.userId;
-    db.get(`
-        SELECT * FROM senhas
-        WHERE tipo = ? AND chamada = 0
-        ORDER BY id ASC
-        LIMIT 1
-    `, [tipo], (err, row) => {
+
+    // Busca o maior número já cadastrado para esse tipo
+    db.get(`SELECT MAX(numero) AS maxNum FROM senhas WHERE tipo = ?`, [tipo], (err, row) => {
         if (err) {
             return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
         }
-        if (!row) {
-            return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
+
+        let nextNumero = 1;
+        if (row && row.maxNum) {
+            nextNumero = row.maxNum + 1;
         }
-        db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
-            if (errUser || !userRow) {
-                return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
+
+        // Insere nova senha
+        db.run(`INSERT INTO senhas (tipo, numero) VALUES (?, ?)`, [tipo, nextNumero], function (err2) {
+            if (err2) {
+                return res.json({ sucesso: false, mensagem: 'Erro ao gerar senha.' });
             }
-            db.run(`UPDATE senhas SET chamada = 1, chamadoPor = ? WHERE id = ?`, [userId, row.id], (err2) => {
-                if (err2) {
-                    return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
-                }
-                const senhaChamada = {
-                    tipo: row.tipo,
-                    numero: row.numero,
-                    sala: userRow.sala,
-                    mesa: userRow.mesa
-                };
-                io.emit('senhaChamada', senhaChamada);
-                return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
-            });
+
+            /*
+               Impressão via spooler do Windows: 
+               - Nome da impressora: "POS58 Printer" (verifique em Dispositivos e Impressoras)
+               - "data" pode ser texto cru, ou binário ESC/POS (caso ela interprete).
+               - "type" pode ser 'RAW' ou 'TEXT'.
+            */
+            const printerName = 'POS58 Printer'; // Ajuste p/ o nome que aparece no seu Windows
+            const texto = `
+SENHA: ${tipo}${nextNumero}
+------------------------
+Gerada em: ${new Date().toLocaleString('pt-BR')}
+Tipo: ${tipo === 'N' ? 'Normal' : 'Preferencial'}
+------------------------
+
+`;
+
+            try {
+                printer.printDirect({
+                    data: texto,
+                    printer: printerName, // Nome da impressora no spooler
+                    type: 'RAW', // ou 'TEXT', dependendo de como a impressora interpreta
+                    success: function (jobID) {
+                        // Impressão enviada com sucesso
+                        return res.json({
+                            sucesso: true,
+                            mensagem: `Senha gerada: ${tipo}${nextNumero} (Impressa via spooler - jobID: ${jobID})`
+                        });
+                    },
+                    error: function (printErr) {
+                        console.error('Erro spooler:', printErr);
+                        return res.json({
+                            sucesso: true,
+                            mensagem: `Senha gerada: ${tipo}${nextNumero} (Falha ao imprimir: spooler)`
+                        });
+                    }
+                });
+            } catch (errPrint) {
+                console.error('Erro de impressão (try/catch):', errPrint);
+                // A senha foi gerada no banco, mesmo que a impressão falhe
+                return res.json({
+                    sucesso: true,
+                    mensagem: `Senha gerada: ${tipo}${nextNumero} (Falha ao imprimir spooler)`
+                });
+            }
         });
     });
+});
+
+// Rota para chamar a próxima senha
+app.post('/chamar-senha', checkAuth, (req, res) => {
+    const { tipo } = req.body;
+    if (!tipo || !['N', 'P'].includes(tipo)) {
+        return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
+    }
+    const userId = req.session.userId;
+    db.get(
+        `SELECT * FROM senhas
+         WHERE tipo = ? AND chamada = 0
+         ORDER BY id ASC
+         LIMIT 1`,
+        [tipo], (err, row) => {
+            if (err) {
+                return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
+            }
+            if (!row) {
+                return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
+            }
+            db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
+                if (errUser || !userRow) {
+                    return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
+                }
+                db.run(`UPDATE senhas SET chamada = 1, chamadoPor = ? WHERE id = ?`,
+                    [userId, row.id],
+                    (err2) => {
+                        if (err2) {
+                            return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
+                        }
+                        const senhaChamada = {
+                            tipo: row.tipo,
+                            numero: row.numero,
+                            sala: userRow.sala,
+                            mesa: userRow.mesa
+                        };
+                        io.emit('senhaChamada', senhaChamada);
+                        return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
+                    });
+            });
+        });
 });
 
 // Rota para rechamar a última senha que o usuário chamou
@@ -192,8 +271,7 @@ app.post('/rechamar-senha', checkAuth, (req, res) => {
     db.get(`
         SELECT senhas.*, users.sala, users.mesa
         FROM senhas
-        JOIN users
-        ON users.id = ?
+        JOIN users ON users.id = ?
         WHERE senhas.chamadoPor = ?
         ORDER BY senhas.id DESC
         LIMIT 1

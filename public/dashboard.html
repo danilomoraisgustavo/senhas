@@ -1,18 +1,20 @@
-<!-- dashboard.html -->
+<!-- public/dashboard.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8" />
     <title>PyDen Senhas - Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css" />
 </head>
+
 <body>
     <header>
         <h1>PyDen Senhas - Dashboard</h1>
         <nav>
             <ul>
                 <li><a href="#" id="btnChamarSenha">Chamar Senha</a></li>
-                <li><a href="#" id="btnCadastrarSenha">Cadastrar Senha</a></li>
+                <li><a href="#" id="btnGerarSenha">Gerar Senha</a></li>
                 <li><a href="#" id="btnGerenciarBD">Gerenciar Banco</a></li>
                 <li><a href="/logout">Sair</a></li>
             </ul>
@@ -33,9 +35,21 @@
         </div>
     </section>
 
-    <!-- Seção para cadastrar senhas individualmente -->
+    <!-- Seção para gerar senhas (substitui o antigo formulário) -->
+    <section id="gerarSenhaSection" class="section-hidden">
+        <h2>Gerar Senha</h2>
+        <div class="buttons-container">
+            <button class="btn-gerar" id="btnGerarNormal">Gerar Senha Normal</button>
+            <button class="btn-gerar" id="btnGerarPreferencial">Gerar Senha Preferencial</button>
+        </div>
+
+        <!-- Mensagem de feedback após gerar a senha -->
+        <div id="msgGerarSenha" class="msg-gerar-senha"></div>
+    </section>
+
+    <!-- Seção antiga de cadastro manual - Mantida para não omitir nada, mas oculta por padrão -->
     <section id="cadastrarSenhaSection" class="section-hidden">
-        <h2>Cadastrar Senha Única</h2>
+        <h2>Cadastrar Senha Única (Antigo Formulário)</h2>
         <form id="formCadastroSenhas" action="/cadastrar-senha" method="POST">
             <label for="tipo">Tipo da Senha:</label>
             <select name="tipo" id="tipo" required>
@@ -64,4 +78,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
+
 </html>
