@@ -6,35 +6,22 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const http = require('http');
 const socketIO = require('socket.io');
+const { Pool } = require('pg'); // Adicionado para Postgres
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+// Mantido para não omitir nenhuma linha, porém não será usado
 const db = new sqlite3.Database('usuarios.db');
 
-// Cria tabela de usuários (se não existir)
-db.run(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nomeCompleto TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    senha TEXT NOT NULL,
-    sala TEXT NOT NULL,
-    mesa TEXT NOT NULL
-  )
-`);
-
-// Cria tabela de senhas (se não existir)
-db.run(`
-  CREATE TABLE IF NOT EXISTS senhas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tipo TEXT NOT NULL,      -- 'N' para normal, 'P' para preferencial
-    numero INTEGER NOT NULL, -- número sequencial da senha
-    chamada INTEGER NOT NULL DEFAULT 0, -- 0 = não chamada, 1 = chamada
-    chamadoPor INTEGER       -- guarda o ID do usuário que chamou
-  )
-`);
+// Cria pool para Postgres
+const pool = new Pool({
+    connectionString: 'postgres://postgres:DeD-140619@pyden-express-2-0.cjucwyoced9l.sa-east-1.rds.amazonaws.com:5432/pyden_express',
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 // Middlewares
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -62,43 +49,45 @@ function checkAuth(req, res, next) {
 // Rota de cadastro de usuário (retorna JSON)
 app.post('/register', (req, res) => {
     const { nomeCompleto, email, senha, sala, mesa } = req.body;
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+    pool.query('SELECT * FROM users_senhas WHERE email = $1', [email], (err, result) => {
         if (err) {
             return res.json({ success: false, message: 'Erro ao verificar e-mail.' });
         }
-        if (row) {
+        if (result.rows.length > 0) {
             return res.json({ success: false, message: 'E-mail já cadastrado!' });
         }
-        db.run(
-            `INSERT INTO users (nomeCompleto, email, senha, sala, mesa)
-             VALUES (?, ?, ?, ?, ?)`,
+        pool.query(
+            `INSERT INTO users_senhas (nomeCompleto, email, senha, sala, mesa)
+             VALUES ($1, $2, $3, $4, $5)`,
             [nomeCompleto, email, senha, sala, mesa],
-            function (err) {
-                if (err) {
+            (err2) => {
+                if (err2) {
                     return res.json({ success: false, message: 'Erro ao cadastrar usuário.' });
                 }
                 return res.json({ success: true, message: 'Usuário cadastrado com sucesso!' });
-            });
+            }
+        );
     });
 });
 
 // Rota de login (retorna JSON)
 app.post('/login', (req, res) => {
     const { email, senha } = req.body;
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+    pool.query('SELECT * FROM users_senhas WHERE email = $1', [email], (err, result) => {
         if (err) {
             return res.json({ success: false, message: 'Erro ao acessar o banco de dados.' });
         }
-        if (!row) {
+        if (result.rows.length === 0) {
             return res.json({ success: false, message: 'Usuário não encontrado.' });
         }
+        const row = result.rows[0];
         if (row.senha !== senha) {
             return res.json({ success: false, message: 'Senha incorreta.' });
         }
         req.session.userId = row.id;
         return res.json({
             success: true,
-            message: `Bem-vindo, ${row.nomeCompleto}!`,
+            message: `Bem-vindo, ${row.nomecompleto}!`,
             redirect: '/dashboard'
         });
     });
@@ -133,10 +122,10 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
     if (isNaN(num) || num <= 0) {
         return res.json({ mensagem: 'Número inválido.' });
     }
-    db.run(
-        `INSERT INTO senhas (tipo, numero) VALUES (?, ?)`,
+    pool.query(
+        'INSERT INTO senhas (tipo, numero) VALUES ($1, $2)',
         [tipo, num],
-        function (err) {
+        (err) => {
             if (err) {
                 return res.json({ mensagem: 'Erro ao cadastrar senha.' });
             }
@@ -152,58 +141,62 @@ app.post('/chamar-senha', checkAuth, (req, res) => {
         return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
     }
     const userId = req.session.userId;
-    db.get(
-        `SELECT * FROM senhas
-         WHERE tipo = ? AND chamada = 0
-         ORDER BY id ASC
-         LIMIT 1`,
-        [tipo], (err, row) => {
-            if (err) {
-                return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
+    pool.query(`
+        SELECT * FROM senhas
+        WHERE tipo = $1 AND chamada = 0
+        ORDER BY id ASC
+        LIMIT 1
+    `, [tipo], (err, result) => {
+        if (err) {
+            return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
+        }
+        if (result.rows.length === 0) {
+            return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
+        }
+        const row = result.rows[0];
+        pool.query('SELECT sala, mesa FROM users_senhas WHERE id = $1', [userId], (errUser, userResult) => {
+            if (errUser || userResult.rows.length === 0) {
+                return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
             }
-            if (!row) {
-                return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
-            }
-            db.get(`SELECT sala, mesa FROM users WHERE id = ?`, [userId], (errUser, userRow) => {
-                if (errUser || !userRow) {
-                    return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
+            const userRow = userResult.rows[0];
+            pool.query('UPDATE senhas SET chamada = 1, chamadoPor = $1 WHERE id = $2',
+                [userId, row.id],
+                (err2) => {
+                    if (err2) {
+                        return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
+                    }
+                    const senhaChamada = {
+                        tipo: row.tipo,
+                        numero: row.numero,
+                        sala: userRow.sala,
+                        mesa: userRow.mesa
+                    };
+                    io.emit('senhaChamada', senhaChamada);
+                    return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
                 }
-                db.run(`UPDATE senhas SET chamada = 1, chamadoPor = ? WHERE id = ?`,
-                    [userId, row.id],
-                    (err2) => {
-                        if (err2) {
-                            return res.json({ sucesso: false, mensagem: 'Erro ao atualizar senha.' });
-                        }
-                        const senhaChamada = {
-                            tipo: row.tipo,
-                            numero: row.numero,
-                            sala: userRow.sala,
-                            mesa: userRow.mesa
-                        };
-                        io.emit('senhaChamada', senhaChamada);
-                        return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
-                    });
-            });
+            );
         });
+    });
 });
 
 // Rota para rechamar a última senha que o usuário chamou
 app.post('/rechamar-senha', checkAuth, (req, res) => {
     const userId = req.session.userId;
-    db.get(`
-        SELECT senhas.*, users.sala, users.mesa
+    pool.query(`
+        SELECT senhas.*, users_senhas.sala, users_senhas.mesa
         FROM senhas
-        JOIN users ON users.id = ?
-        WHERE senhas.chamadoPor = ?
+        JOIN users_senhas ON users_senhas.id = $1
+        WHERE senhas.chamadoPor = $2
         ORDER BY senhas.id DESC
         LIMIT 1
-    `, [userId, userId], (err, row) => {
+    `, [userId, userId], (err, result) => {
         if (err) {
             return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
         }
-        if (!row) {
+        if (result.rows.length === 0) {
             return res.json({ sucesso: false, mensagem: 'Você ainda não chamou nenhuma senha.' });
         }
+        const row = result.rows[0];
         const senhaChamada = {
             tipo: row.tipo,
             numero: row.numero,
@@ -217,11 +210,18 @@ app.post('/rechamar-senha', checkAuth, (req, res) => {
 
 // Rota para limpar a tabela de senhas
 app.post('/limpar-senhas', checkAuth, (req, res) => {
-    db.serialize(() => {
-        db.run(`DELETE FROM senhas`);
-        db.run(`DELETE FROM sqlite_sequence WHERE name='senhas'`);
+    pool.query('DELETE FROM senhas', (err) => {
+        if (err) {
+            return res.json({ mensagem: 'Erro ao limpar tabela de senhas.' });
+        }
+        // Reiniciar sequência da tabela senhas no Postgres
+        pool.query('ALTER SEQUENCE senhas_id_seq RESTART WITH 1', (err2) => {
+            if (err2) {
+                return res.json({ mensagem: 'Erro ao reiniciar sequência de senhas.' });
+            }
+            return res.json({ mensagem: 'Tabela de senhas limpa com sucesso!' });
+        });
     });
-    return res.json({ mensagem: 'Tabela de senhas limpa com sucesso!' });
 });
 
 // Rota raiz (login/cadastro)

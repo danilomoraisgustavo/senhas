@@ -16,6 +16,9 @@
     "escpos-usb": "^3.0.0-alpha.4",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "pg": "^8.14.1",
     "socket.io": "^4.8.1",
     "sqlite3": "^5.1.7"
   }
