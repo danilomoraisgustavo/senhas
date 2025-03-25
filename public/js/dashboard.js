@@ -1,25 +1,18 @@
 // public/js/dashboard.js
 const btnChamarSenha = document.getElementById('btnChamarSenha');
-const btnGerarSenha = document.getElementById('btnGerarSenha');
+const btnCadastrarSenha = document.getElementById('btnCadastrarSenha');
 const btnGerenciarBD = document.getElementById('btnGerenciarBD');
 
 const chamarSenhaSection = document.getElementById('chamarSenhaSection');
-const gerarSenhaSection = document.getElementById('gerarSenhaSection');
 const cadastrarSenhaSection = document.getElementById('cadastrarSenhaSection');
 const gerenciarBDSection = document.getElementById('gerenciarBDSection');
 
 const chamarNormalBtn = document.getElementById('chamarNormal');
 const chamarPreferencialBtn = document.getElementById('chamarPreferencial');
 const chamarUltimaBtn = document.getElementById('chamarUltima');
-
 const lastCalledElement = document.getElementById('lastCalled');
 
-// Seção nova: gerar senhas
-const btnGerarNormal = document.getElementById('btnGerarNormal');
-const btnGerarPreferencial = document.getElementById('btnGerarPreferencial');
-const msgGerarSenha = document.getElementById('msgGerarSenha');
-
-// Formulário antigo (mantido) de cadastro manual
+// Formulário de cadastro manual
 const formCadastro = document.getElementById('formCadastroSenhas');
 const msgCadastro = document.getElementById('msgCadastro');
 
@@ -30,15 +23,12 @@ const dbMessageContainer = document.getElementById('dbMessageContainer');
 // Socket.io
 const socket = io();
 
-/* Alterna abas do dashboard */
+/* Alterna para a seção de chamar senha */
 btnChamarSenha.addEventListener('click', (e) => {
     e.preventDefault();
     chamarSenhaSection.classList.add('section-active');
     chamarSenhaSection.classList.remove('section-hidden');
 
-    gerarSenhaSection.classList.add('section-hidden');
-    gerarSenhaSection.classList.remove('section-active');
-
     cadastrarSenhaSection.classList.add('section-hidden');
     cadastrarSenhaSection.classList.remove('section-active');
 
@@ -46,21 +36,20 @@ btnChamarSenha.addEventListener('click', (e) => {
     gerenciarBDSection.classList.remove('section-active');
 });
 
-btnGerarSenha.addEventListener('click', (e) => {
+/* Alterna para a seção de cadastrar senha */
+btnCadastrarSenha.addEventListener('click', (e) => {
     e.preventDefault();
-    gerarSenhaSection.classList.add('section-active');
-    gerarSenhaSection.classList.remove('section-hidden');
+    cadastrarSenhaSection.classList.add('section-active');
+    cadastrarSenhaSection.classList.remove('section-hidden');
 
     chamarSenhaSection.classList.add('section-hidden');
     chamarSenhaSection.classList.remove('section-active');
 
-    cadastrarSenhaSection.classList.add('section-hidden');
-    cadastrarSenhaSection.classList.remove('section-active');
-
     gerenciarBDSection.classList.add('section-hidden');
     gerenciarBDSection.classList.remove('section-active');
 });
 
+/* Alterna para a seção de gerenciar BD */
 btnGerenciarBD.addEventListener('click', (e) => {
     e.preventDefault();
     gerenciarBDSection.classList.add('section-active');
@@ -68,9 +57,6 @@ btnGerenciarBD.addEventListener('click', (e) => {
 
     chamarSenhaSection.classList.add('section-hidden');
     chamarSenhaSection.classList.remove('section-active');
-
-    gerarSenhaSection.classList.add('section-hidden');
-    gerarSenhaSection.classList.remove('section-active');
 
     cadastrarSenhaSection.classList.add('section-hidden');
     cadastrarSenhaSection.classList.remove('section-active');
@@ -129,33 +115,7 @@ chamarUltimaBtn.addEventListener('click', () => {
         .catch(err => console.error(err));
 });
 
-/* ----- NOVOS BOTÕES PARA GERAR SENHA AUTOMÁTICA ----- */
-btnGerarNormal.addEventListener('click', () => {
-    gerarSenha('N');
-});
-
-btnGerarPreferencial.addEventListener('click', () => {
-    gerarSenha('P');
-});
-
-function gerarSenha(tipo) {
-    fetch('/gerar-senha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo })
-    })
-        .then(res => res.json())
-        .then(data => {
-            if (data.sucesso) {
-                msgGerarSenha.textContent = data.mensagem;
-            } else {
-                msgGerarSenha.textContent = data.mensagem || 'Erro ao gerar senha.';
-            }
-        })
-        .catch(err => console.error(err));
-}
-
-/* ----- Formulário antigo de cadastro manual (mantido para não omitir nada) ----- */
+/* Formulário de cadastro manual de senha */
 formCadastro.addEventListener('submit', (e) => {
     e.preventDefault();
     const formData = new FormData(formCadastro);

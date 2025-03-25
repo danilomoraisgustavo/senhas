@@ -14,7 +14,7 @@
         <nav>
             <ul>
                 <li><a href="#" id="btnChamarSenha">Chamar Senha</a></li>
-                <li><a href="#" id="btnGerarSenha">Gerar Senha</a></li>
+                <li><a href="#" id="btnCadastrarSenha">Cadastrar Senha</a></li>
                 <li><a href="#" id="btnGerenciarBD">Gerenciar Banco</a></li>
                 <li><a href="/logout">Sair</a></li>
             </ul>
@@ -35,21 +35,9 @@
         </div>
     </section>
 
-    <!-- Seção para gerar senhas (substitui o antigo formulário) -->
-    <section id="gerarSenhaSection" class="section-hidden">
-        <h2>Gerar Senha</h2>
-        <div class="buttons-container">
-            <button class="btn-gerar" id="btnGerarNormal">Gerar Senha Normal</button>
-            <button class="btn-gerar" id="btnGerarPreferencial">Gerar Senha Preferencial</button>
-        </div>
-
-        <!-- Mensagem de feedback após gerar a senha -->
-        <div id="msgGerarSenha" class="msg-gerar-senha"></div>
-    </section>
-
-    <!-- Seção antiga de cadastro manual - Mantida para não omitir nada, mas oculta por padrão -->
+    <!-- Seção para cadastro manual de senha -->
     <section id="cadastrarSenhaSection" class="section-hidden">
-        <h2>Cadastrar Senha Única (Antigo Formulário)</h2>
+        <h2>Cadastrar Senha Manual</h2>
         <form id="formCadastroSenhas" action="/cadastrar-senha" method="POST">
             <label for="tipo">Tipo da Senha:</label>
             <select name="tipo" id="tipo" required>
@@ -57,10 +45,8 @@
                 <option value="N">Normal</option>
                 <option value="P">Preferencial</option>
             </select>
-
             <label for="numero">Número da Senha:</label>
             <input type="number" name="numero" id="numero" required />
-
             <button type="submit">Cadastrar Senha</button>
         </form>
         <div id="msgCadastro"></div>

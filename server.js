@@ -7,9 +7,6 @@ const session = require('express-session');
 const http = require('http');
 const socketIO = require('socket.io');
 
-// Para imprimir via spooler do Windows (ou do sistema)
-const printer = require('printer'); // npm install printer
-
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
@@ -126,7 +123,7 @@ app.get('/display', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
-// Rota antiga para cadastrar senha manual (mantida para não omitir nada)
+// Rota para cadastrar senha MANUAL (tipo e número)
 app.post('/cadastrar-senha', checkAuth, (req, res) => {
     const { tipo, numero } = req.body;
     if (!tipo || !['N', 'P'].includes(tipo)) {
@@ -146,81 +143,6 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
             return res.json({ mensagem: `Senha cadastrada: ${tipo}${num}` });
         }
     );
-});
-
-/* 
-   NOVA ROTA PARA GERAR SENHA AUTOMÁTICA + IMPRIMIR via SPOOLER
-   (usando "printer" em vez de acesso USB direto)
-*/
-app.post('/gerar-senha', (req, res) => {
-    const { tipo } = req.body;
-    if (!tipo || !['N', 'P'].includes(tipo)) {
-        return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
-    }
-
-    // Busca o maior número já cadastrado para esse tipo
-    db.get(`SELECT MAX(numero) AS maxNum FROM senhas WHERE tipo = ?`, [tipo], (err, row) => {
-        if (err) {
-            return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
-        }
-
-        let nextNumero = 1;
-        if (row && row.maxNum) {
-            nextNumero = row.maxNum + 1;
-        }
-
-        // Insere nova senha
-        db.run(`INSERT INTO senhas (tipo, numero) VALUES (?, ?)`, [tipo, nextNumero], function (err2) {
-            if (err2) {
-                return res.json({ sucesso: false, mensagem: 'Erro ao gerar senha.' });
-            }
-
-            /*
-               Impressão via spooler do Windows: 
-               - Nome da impressora: "POS58 Printer" (verifique em Dispositivos e Impressoras)
-               - "data" pode ser texto cru, ou binário ESC/POS (caso ela interprete).
-               - "type" pode ser 'RAW' ou 'TEXT'.
-            */
-            const printerName = 'POS58 Printer'; // Ajuste p/ o nome que aparece no seu Windows
-            const texto = `
-SENHA: ${tipo}${nextNumero}
-------------------------
-Gerada em: ${new Date().toLocaleString('pt-BR')}
-Tipo: ${tipo === 'N' ? 'Normal' : 'Preferencial'}
-------------------------
-
-`;
-
-            try {
-                printer.printDirect({
-                    data: texto,
-                    printer: printerName, // Nome da impressora no spooler
-                    type: 'RAW', // ou 'TEXT', dependendo de como a impressora interpreta
-                    success: function (jobID) {
-                        // Impressão enviada com sucesso
-                        return res.json({
-                            sucesso: true,
-                            mensagem: `Senha gerada: ${tipo}${nextNumero} (Impressa via spooler - jobID: ${jobID})`
-                        });
-                    },
-                    error: function (printErr) {
-                        console.error('Erro spooler:', printErr);
-                        return res.json({
-                            sucesso: true,
-                            mensagem: `Senha gerada: ${tipo}${nextNumero} (Falha ao imprimir: spooler)`
-                        });
-                    }
-                });
-            } catch (errPrint) {
-                console.error('Erro de impressão (try/catch):', errPrint);
-                // A senha foi gerada no banco, mesmo que a impressão falhe
-                return res.json({
-                    sucesso: true,
-                    mensagem: `Senha gerada: ${tipo}${nextNumero} (Falha ao imprimir spooler)`
-                });
-            }
-        });
-    });
 });
 
 // Rota para chamar a próxima senha
