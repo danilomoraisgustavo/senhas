@@ -122,16 +122,71 @@ app.post('/cadastrar-senha', checkAuth, (req, res) => {
     if (isNaN(num) || num <= 0) {
         return res.json({ mensagem: 'Número inválido.' });
     }
-    pool.query(
-        'INSERT INTO senhas (tipo, numero) VALUES ($1, $2)',
-        [tipo, num],
-        (err) => {
-            if (err) {
-                return res.json({ mensagem: 'Erro ao cadastrar senha.' });
+
+    // Se for senha NORMAL, verifica limites de 400 no dia e 200 por turno
+    if (tipo === 'N') {
+        // Verifica total diário
+        pool.query(
+            "SELECT COUNT(*) AS total_normal_day FROM senhas WHERE tipo='N' AND DATE(created_at) = CURRENT_DATE",
+            (errCount, resultCount) => {
+                if (errCount) {
+                    return res.json({ mensagem: 'Erro ao verificar contagem de senhas.' });
+                }
+                const totalNormalDay = parseInt(resultCount.rows[0].total_normal_day, 10);
+                if (totalNormalDay >= 400) {
+                    return res.json({ mensagem: 'Limite diário de senhas normais atingido (400).' });
+                }
+
+                // Verifica turno
+                const currentHour = new Date().getHours();
+                let shiftCondition;
+                if (currentHour < 12) {
+                    shiftCondition = "EXTRACT(HOUR FROM created_at) < 12";
+                } else {
+                    shiftCondition = "EXTRACT(HOUR FROM created_at) >= 12";
+                }
+                const queryShift = `
+                    SELECT COUNT(*) AS total_normal_shift 
+                    FROM senhas
+                    WHERE tipo='N' 
+                    AND DATE(created_at) = CURRENT_DATE 
+                    AND ${shiftCondition}
+                `;
+                pool.query(queryShift, (errShift, resultShift) => {
+                    if (errShift) {
+                        return res.json({ mensagem: 'Erro ao verificar contagem de senhas por turno.' });
+                    }
+                    const totalNormalShift = parseInt(resultShift.rows[0].total_normal_shift, 10);
+                    if (totalNormalShift >= 200) {
+                        return res.json({ mensagem: 'Limite de senhas normais por turno atingido (200).' });
+                    }
+                    // Se passou nas verificações, cadastra
+                    pool.query(
+                        'INSERT INTO senhas (tipo, numero, created_at) VALUES ($1, $2, NOW())',
+                        [tipo, num],
+                        (err) => {
+                            if (err) {
+                                return res.json({ mensagem: 'Erro ao cadastrar senha.' });
+                            }
+                            return res.json({ mensagem: `Senha cadastrada: ${tipo}${num}` });
+                        }
+                    );
+                });
             }
-            return res.json({ mensagem: `Senha cadastrada: ${tipo}${num}` });
-        }
-    );
+        );
+    } else {
+        // Se for senha PREFERENCIAL, não há limite
+        pool.query(
+            'INSERT INTO senhas (tipo, numero, created_at) VALUES ($1, $2, NOW())',
+            [tipo, num],
+            (err) => {
+                if (err) {
+                    return res.json({ mensagem: 'Erro ao cadastrar senha.' });
+                }
+                return res.json({ mensagem: `Senha cadastrada: ${tipo}${num}` });
+            }
+        );
+    }
 });
 
 // Rota para chamar a próxima senha
@@ -203,8 +258,14 @@ app.post('/rechamar-senha', checkAuth, (req, res) => {
             sala: row.sala,
             mesa: row.mesa
         };
-        io.emit('senhaChamada', senhaChamada);
-        return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
+        // Atualiza horário de rechamada (opcional)
+        pool.query('UPDATE senhas SET updated_at = NOW() WHERE id = $1', [row.id], (errUpdate) => {
+            if (errUpdate) {
+                return res.json({ sucesso: false, mensagem: 'Erro ao atualizar hora de rechamada.' });
+            }
+            io.emit('senhaChamada', senhaChamada);
+            return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
+        });
     });
 });
 
