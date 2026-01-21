@@ -296,7 +296,7 @@ io.on('connection', (socket) => {
 });
 
 // Inicia o servidor
-const PORT = 3000;
+const PORT = 7000;
 server.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
