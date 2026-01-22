@@ -401,19 +401,14 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
 });
 
 // NOVO: gerar por intervalo (inteligente)
+// NOVO: gerar por intervalo (inteligente) + impressão térmica
 app.post('/gerar-intervalo', checkAuth, async (req, res) => {
   try {
     const tipo = normalizeTipo(req.body.tipo);
     const inicio = toPositiveInt(req.body.inicio);
     const fim = toPositiveInt(req.body.fim);
 
-    if (!tipo) let printUrl = null;
-    if (inserted > 0) {
-      const token = createPrintJob(req.session.userId, itens);
-      printUrl = `/print/token/${token}`;
-    }
-
-    return res.json({ ok: false, mensagem: 'Tipo inválido.' });
+    if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
     if (!inicio || !fim) return res.json({ ok: false, mensagem: 'Informe início e fim válidos.' });
 
     const start = Math.min(inicio, fim);
@@ -426,6 +421,7 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
       return res.json({ ok: false, mensagem: `Intervalo grande demais. Máximo permitido: ${maxBatch} senhas por geração.` });
     }
 
+    // regras de limite para Normal (mantém sua regra atual)
     if (tipo === 'N') {
       // limite considera o pior caso (todas novas). Depois o SQL pode pular duplicadas.
       const lim = await checkLimitesSenhasNormaisParaInserir(rangeSize);
@@ -453,18 +449,25 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
         (SELECT COUNT(*)::int FROM inseridos) AS inseridos,
         (SELECT COUNT(*)::int FROM serie) AS solicitados,
         COALESCE((SELECT json_agg(inseridos ORDER BY numero ASC) FROM inseridos), '[]'::json) AS itens
-      ,
+      `,
       [tipo, start, end]
     );
 
     const inserted = q.rows[0]?.inseridos ?? 0;
-    const itens = q.rows[0]?.itens || [];
     const requested = q.rows[0]?.solicitados ?? rangeSize;
+    const itens = q.rows[0]?.itens || [];
     const skipped = requested - inserted;
+
+    let printUrl = null;
+    if (inserted > 0) {
+      const token = createPrintJob(req.session.userId, itens);
+      printUrl = `/print/token/${token}`;
+    }
 
     return res.json({
       ok: true,
-      mensagem: `Geradas ${inserted} senha(s) (${tipo}${start} a ${tipo}${end}).` + (skipped > 0 ? ` ${skipped} já existiam hoje e foram ignoradas.` : ''),
+      mensagem: `Geradas ${inserted} senha(s) (${tipo}${start} a ${tipo}${end}).` +
+        (skipped > 0 ? ` ${skipped} já existiam hoje e foram ignoradas.` : ''),
       inseridos: inserted,
       ignorados: skipped,
       intervalo: { tipo, inicio: start, fim: end },
