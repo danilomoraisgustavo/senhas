@@ -37,6 +37,13 @@ function toast(message, type = 'success') {
   toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 3200);
 }
 
+
+function openPrint(printUrl){
+  if(!printUrl) return;
+  // abre em nova aba/janela para permitir impressão térmica (evita bloqueio de pop-up quando acionado por click)
+  window.open(printUrl, '_blank', 'noopener,noreferrer');
+}
+
 function setFeedback(el, text, type) {
   if (!el) return;
   el.textContent = text || '';
@@ -156,6 +163,7 @@ if (formCadastro) {
 
       setFeedback(msgCadastro, data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
       toast(data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
+      if (data.printUrl) openPrint(data.printUrl);
       formCadastro.reset();
     } catch (e2) {
       console.error(e2);
@@ -191,6 +199,7 @@ if (formGerarIntervalo) {
       if (data.ok) {
         setFeedback(msgGerarIntervalo, data.mensagem || 'Intervalo gerado.', 'success');
         toast(data.mensagem || 'Intervalo gerado.', 'success');
+        if (data.printUrl) openPrint(data.printUrl);
         formGerarIntervalo.reset();
       } else {
         setFeedback(msgGerarIntervalo, data.mensagem || 'Falha ao gerar intervalo.', 'error');
