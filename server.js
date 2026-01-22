@@ -30,16 +30,16 @@ const crypto = require('crypto');
 // In-memory print jobs (token -> { userId, createdAt, items: [{id,tipo,numero,created_at}] })
 const printJobs = new Map();
 const PRINT_JOB_TTL_MS = 5 * 60 * 1000; // 5 min
-function createPrintJob(userId, items){
+function createPrintJob(userId, items) {
   const token = crypto.randomUUID();
   printJobs.set(token, { userId, createdAt: Date.now(), items });
   return token;
 }
-function getPrintJob(token, userId){
+function getPrintJob(token, userId) {
   const job = printJobs.get(token);
-  if(!job) return null;
-  if(job.userId !== userId) return null;
-  if(Date.now() - job.createdAt > PRINT_JOB_TTL_MS){
+  if (!job) return null;
+  if (job.userId !== userId) return null;
+  if (Date.now() - job.createdAt > PRINT_JOB_TTL_MS) {
     printJobs.delete(token);
     return null;
   }
@@ -47,8 +47,8 @@ function getPrintJob(token, userId){
 }
 setInterval(() => {
   const now = Date.now();
-  for(const [k,v] of printJobs.entries()){
-    if(now - v.createdAt > PRINT_JOB_TTL_MS) printJobs.delete(k);
+  for (const [k, v] of printJobs.entries()) {
+    if (now - v.createdAt > PRINT_JOB_TTL_MS) printJobs.delete(k);
   }
 }, 60 * 1000).unref();
 
@@ -162,16 +162,16 @@ async function checkLimitesSenhasNormaisParaInserir(qtyToInsert) {
 
 
 
-function escapeHtml(str){
+function escapeHtml(str) {
   return String(str || '')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'",'&#039;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
-function renderThermalTickets(items, opts = {}){
+function renderThermalTickets(items, opts = {}) {
   const title = opts.title || 'SETRANE EXPRESS';
   const subtitle = opts.subtitle || 'Senha de Atendimento';
   const now = new Date();
@@ -198,7 +198,7 @@ function renderThermalTickets(items, opts = {}){
         <div class="divider"></div>
 
         <div class="footer">Por favor, aguarde ser chamado no painel.</div>
-      </div>
+      </div><br><br><br><br>
     `;
   }).join('\n');
 
@@ -379,7 +379,7 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
     await pool.query('BEGIN');
     await pool.query(
       "SELECT pg_advisory_xact_lock(hashtext($1))",
-      [`senhas:${tipo}:${new Date().toISOString().slice(0,10)}`]
+      [`senhas:${tipo}:${new Date().toISOString().slice(0, 10)}`]
     );
 
     const nextQ = await pool.query(
@@ -413,7 +413,7 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
       printUrl
     });
   } catch (e) {
-    try { await pool.query('ROLLBACK'); } catch (_) {}
+    try { await pool.query('ROLLBACK'); } catch (_) { }
     console.error('[GERAR-PROXIMA] erro:', e);
     return res.json({ ok: false, mensagem: 'Erro ao gerar próxima senha.' });
   }
@@ -456,7 +456,7 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
       mensagem: `Senha cadastrada: ${tipo}${numero}`,
       printUrl: `/print/token/${token}`
     });
-} catch (e) {
+  } catch (e) {
     console.error('[CADASTRAR-SENHA] erro:', e);
     return res.json({ mensagem: 'Erro ao cadastrar senha.' });
   }
@@ -560,7 +560,7 @@ app.post('/chamar-senha', checkAuth, async (req, res) => {
       [tipo]
     );
 
-if (next.rows.length === 0) {
+    if (next.rows.length === 0) {
       return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
     }
 
