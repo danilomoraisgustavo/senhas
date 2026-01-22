@@ -175,45 +175,29 @@ function renderThermalTickets(items, opts = {}){
   const title = opts.title || 'SETRANE EXPRESS';
   const subtitle = opts.subtitle || 'Senha de Atendimento';
   const now = new Date();
-  const printedAt = now.toLocaleString('pt-BR');
+  const tz = 'America/Sao_Paulo';
+  const fmt = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: tz });
+  const printedAt = fmt(now);
   const tickets = items.map(it => {
     const tipo = escapeHtml(it.tipo);
     const numero = escapeHtml(it.numero);
     const senha = `${tipo}${numero}`;
-    const created = it.created_at ? new Date(it.created_at).toLocaleString('pt-BR') : printedAt;
+    const created = it.created_at ? fmt(it.created_at) : printedAt;
 
     return `
       <div class="ticket">
-        <div class="header">
-          <p class="brand">${title}</p>
-          <p class="sub">${subtitle}</p>
-          <div class="meta-top">
-            <div><strong>Emitida:</strong> ${escapeHtml(created)}</div>
-          </div>
-        </div>
+        <p class="brand">${title}</p>
+        <p class="sub">${subtitle}</p>
+        <p class="emitida">Emitida: ${escapeHtml(created)}</p>
 
         <div class="divider"></div>
 
-        <div class="senha-wrap">
-          <div class="senha-label">Sua senha</div>
-          <p class="senha">${senha}</p>
-        </div>
+        <p class="senha-label">Sua senha</p>
+        <p class="senha">${senha}</p>
 
         <div class="divider"></div>
 
-        <div class="meta">
-          <div><strong>Tipo:</strong> ${tipo === 'N' ? 'Normal' : 'Preferencial'}</div>
-        </div>
-
-        <div class="spacer"></div>
-
-        <div class="footer">
-          <div>Por favor, aguarde ser chamado no painel.</div>
-          <div class="spacer"></div>
-          <div><strong>SETRANE EXPRESS</strong></div>
-        </div>
-
-        <div class="spacer-lg"></div>
+        <div class="footer">Por favor, aguarde ser chamado no painel.</div>
       </div>
     `;
   }).join('\n');
@@ -225,91 +209,30 @@ function renderThermalTickets(items, opts = {}){
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Impressão • PyDen Senhas</title>
   <style>
-    :root { --w: 80mm; } /* térmica 80mm (funciona bem também em 58mm) */
+    :root { --w: 80mm; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #fff;
-      color: #000;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .page {
-      width: var(--w);
-      margin: 0 auto;
-      padding: 0;
-    }
-    .ticket {
-      padding: 8mm 5mm;
-      page-break-after: always;
-    }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color:#000; background:#fff; }
+    .page { width: var(--w); margin: 0 auto; }
 
-    .header {
-      text-align: center;
-      margin-bottom: 6mm;
-    }
-    .brand {
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: .8px;
-      text-transform: uppercase;
-      margin: 0;
-    }
-    .sub {
-      font-size: 11px;
-      margin: 2mm 0 0;
-      letter-spacing: .2px;
-    }
-    .meta-top {
-      font-size: 10px;
-      margin-top: 3mm;
-      line-height: 1.35;
-    }
+    /* Compact padding + leve deslocamento para esquerda (menos padding à esquerda) */
+    .ticket { padding: 5mm 6mm 5mm 4mm; page-break-after: always; }
 
-    .divider {
-      border-top: 1px dashed #000;
-      margin: 6mm 0;
-    }
+    .brand { text-align:center; font-size: 15px; font-weight: 900; letter-spacing: .9px; text-transform: uppercase; margin: 0; }
+    .sub { text-align:center; font-size: 11px; margin: 1.5mm 0 0; font-weight: 700; }
+    .emitida { text-align:center; font-size: 9.5px; margin: 2mm 0 0; line-height: 1.2; }
 
-    .senha-wrap {
-      text-align: center;
-      padding: 2mm 0 4mm;
-    }
-    .senha-label {
-      font-size: 10px;
-      letter-spacing: .2px;
-      margin-bottom: 2mm;
-      text-transform: uppercase;
-    }
-    .senha {
-      font-size: 44px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      margin: 0;
-      line-height: 1;
-    }
+    .divider { border-top: 1px dashed #000; margin: 3.5mm 0; }
 
-    .meta {
-      font-size: 10px;
-      line-height: 1.45;
-    }
-    .footer {
-      text-align: center;
-      font-size: 10px;
-      margin-top: 6mm;
-      line-height: 1.35;
-    }
-    .footer strong { font-weight: 800; }
+    .senha-label { text-align:center; font-size: 10px; text-transform: uppercase; margin: 0 0 1.5mm; font-weight: 700; }
+    .senha { text-align:center; font-size: 42px; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; }
 
-    .spacer { height: 6mm; }
-    .spacer-lg { height: 10mm; }
+    .footer { text-align:center; font-size: 9.5px; margin-top: 3mm; line-height: 1.2; }
 
     @media print {
       @page { margin: 0; }
       body { margin: 0; }
       .page { width: var(--w); }
-      .ticket { padding: 8mm 5mm; }
+      .ticket { padding: 5mm 6mm 5mm 4mm; }
     }
   </style>
 </head>
