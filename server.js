@@ -332,13 +332,15 @@ app.post('/chamar-senha', checkAuth, async (req, res) => {
     const next = await pool.query(
       `SELECT id, tipo, numero
        FROM senhas
-       WHERE tipo = $1 AND chamada = 0
-       ORDER BY id ASC
+       WHERE tipo = $1
+         AND chamada = 0
+         AND DATE(created_at) = CURRENT_DATE
+       ORDER BY numero ASC, id ASC
        LIMIT 1`,
       [tipo]
     );
 
-    if (next.rows.length === 0) {
+if (next.rows.length === 0) {
       return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
     }
 
