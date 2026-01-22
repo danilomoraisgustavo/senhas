@@ -17,11 +17,14 @@ const db = new sqlite3.Database('usuarios.db');
 
 // Cria pool para Postgres
 const pool = new Pool({
-    connectionString: 'postgres://postgres:DeD-140619@pyden-express-2-0.cjucwyoced9l.sa-east-1.rds.amazonaws.com:5432/pyden_express',
-    ssl: {
-        rejectUnauthorized: false
-    }
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
 });
+pool.query('SELECT current_database() db, inet_server_addr() ip', (err, r) => {
+    if (err) console.error('[DB] Falha:', err);
+    else console.log('[DB] OK:', r.rows[0]);
+});
+
 
 // Middlewares
 app.use(bodyParser.urlencoded({ extended: true }));
