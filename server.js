@@ -1,4 +1,5 @@
 // server.js
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
@@ -20,6 +21,7 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
 pool.query('SELECT current_database() db, inet_server_addr() ip', (err, r) => {
     if (err) console.error('[DB] Falha:', err);
     else console.log('[DB] OK:', r.rows[0]);
