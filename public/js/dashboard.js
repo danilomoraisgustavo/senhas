@@ -9,6 +9,13 @@ const sections = document.querySelectorAll('.section');
 
 const lastCalledElement = document.getElementById('lastCalled');
 
+
+const gerarNormalRapidoBtn = document.getElementById('gerarNormalRapido');
+const gerarPreferencialRapidoBtn = document.getElementById('gerarPreferencialRapido');
+const abrirIntervaloBtn = document.getElementById('abrirIntervalo');
+const intervaloBox = document.getElementById('intervaloBox');
+const msgGerarRapido = document.getElementById('msgGerarRapido');
+
 // Forms
 const formCadastro = document.getElementById('formCadastroSenhas');
 const msgCadastro = document.getElementById('msgCadastro');
@@ -84,6 +91,26 @@ async function postJson(url, body) {
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
+async function gerarProxima(tipo){
+  try{
+    if (msgGerarRapido) setFeedback(msgGerarRapido, 'Gerando...', 'warning');
+    const { data } = await postJson('/gerar-proxima', { tipo });
+    if (data.ok){
+      if (msgGerarRapido) setFeedback(msgGerarRapido, data.mensagem || 'Senha gerada.', 'success');
+      toast(data.mensagem || 'Senha gerada.', 'success');
+      if (data.printUrl) openPrint(data.printUrl);
+    } else {
+      if (msgGerarRapido) setFeedback(msgGerarRapido, data.mensagem || 'Falha ao gerar.', 'error');
+      toast(data.mensagem || 'Falha ao gerar.', 'error');
+    }
+  } catch(e){
+    console.error(e);
+    if (msgGerarRapido) setFeedback(msgGerarRapido, 'Erro ao gerar senha.', 'error');
+    toast('Erro ao gerar senha.', 'error');
+  }
+}
+
+
 
 // Tabs behavior
 if (navButtons && navButtons.length) {
@@ -138,6 +165,18 @@ async function rechamarUltima() {
 if (chamarNormalBtn) chamarNormalBtn.addEventListener('click', () => chamarSenha('N'));
 if (chamarPreferencialBtn) chamarPreferencialBtn.addEventListener('click', () => chamarSenha('P'));
 if (chamarUltimaBtn) chamarUltimaBtn.addEventListener('click', () => rechamarUltima());
+if (gerarNormalRapidoBtn) gerarNormalRapidoBtn.addEventListener('click', () => gerarProxima('N'));
+if (gerarPreferencialRapidoBtn) gerarPreferencialRapidoBtn.addEventListener('click', () => gerarProxima('P'));
+
+if (abrirIntervaloBtn && intervaloBox){
+  abrirIntervaloBtn.addEventListener('click', () => {
+    const open = intervaloBox.style.display !== 'none';
+    intervaloBox.style.display = open ? 'none' : 'block';
+    toast(open ? 'Intervalo fechado.' : 'Intervalo aberto.', 'warning');
+  });
+}
+
+
 
 // Cadastro unitário
 if (formCadastro) {

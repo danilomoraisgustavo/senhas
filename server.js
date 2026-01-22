@@ -358,6 +358,65 @@ app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
 
 // -------------------- Senhas --------------------
 
+
+// Geração rápida (1 clique): cria a PRÓXIMA senha do dia (sequencial) e já prepara impressão térmica
+// Body: { tipo: 'N'|'P' }
+app.post('/gerar-proxima', checkAuth, async (req, res) => {
+  const tipo = normalizeTipo(req.body.tipo);
+  if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
+
+  try {
+    // limites para Normal
+    if (tipo === 'N') {
+      const lim = await checkLimitesSenhasNormaisParaInserir(1);
+      if (!lim.ok) return res.json({ ok: false, mensagem: lim.message });
+    }
+
+    // Evita "pulos" por concorrência: trava por tipo+dia até o commit
+    await pool.query('BEGIN');
+    await pool.query(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      [`senhas:${tipo}:${new Date().toISOString().slice(0,10)}`]
+    );
+
+    const nextQ = await pool.query(
+      `SELECT COALESCE(MAX(numero), 0)::int + 1 AS next
+       FROM senhas
+       WHERE tipo = $1 AND DATE(created_at) = CURRENT_DATE`,
+      [tipo]
+    );
+
+    const nextNum = nextQ.rows[0].next;
+
+    const ins = await pool.query(
+      `INSERT INTO senhas (tipo, numero, created_at, chamada)
+       VALUES ($1, $2, NOW(), 0)
+       RETURNING id, tipo, numero, created_at`,
+      [tipo, nextNum]
+    );
+
+    await pool.query('COMMIT');
+
+    const item = ins.rows[0];
+    const token = createPrintJob(req.session.userId, [item]);
+    const printUrl = `/print/token/${token}`;
+
+    return res.json({
+      ok: true,
+      mensagem: `Senha gerada: ${item.tipo}${item.numero}`,
+      senha: `${item.tipo}${item.numero}`,
+      numero: item.numero,
+      tipo: item.tipo,
+      printUrl
+    });
+  } catch (e) {
+    try { await pool.query('ROLLBACK'); } catch (_) {}
+    console.error('[GERAR-PROXIMA] erro:', e);
+    return res.json({ ok: false, mensagem: 'Erro ao gerar próxima senha.' });
+  }
+});
+
+
 // Cadastro unitário (mantém endpoint)
 app.post('/cadastrar-senha', checkAuth, async (req, res) => {
   try {

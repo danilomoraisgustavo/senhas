@@ -66,8 +66,32 @@
         <p>Geração inteligente: cria várias senhas de uma vez e ignora as que já existirem hoje.</p>
       </div>
 
+      <div class="grid-actions">
+        <button class="btn btn-primary" id="gerarNormalRapido">
+          <span class="btn-title">Normal</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
+
+        <button class="btn btn-accent" id="gerarPreferencialRapido">
+          <span class="btn-title">Preferencial</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
+
+        <button class="btn btn-ghost" id="abrirIntervalo">
+          <span class="btn-title">Intervalo</span>
+          <span class="btn-sub">Modo avançado</span>
+        </button>
+      </div>
+
       <div class="card">
-        <form id="formGerarIntervalo" class="form-grid">
+        <div class="card-title">Resultado</div>
+        <div id="msgGerarRapido" class="feedback">Use os botões acima para gerar rapidamente.</div>
+      </div>
+
+      <div id="intervaloBox" class="card" style="display:none;">
+        <div class="card-title">Gerar por intervalo (avançado)</div>
+
+        <form id="formGerarIntervalo" class="form-grid" style="margin-top:10px;">
           <div class="field">
             <label for="tipoIntervalo">Tipo</label>
             <select id="tipoIntervalo" name="tipo" required>
@@ -88,16 +112,15 @@
           </div>
 
           <div class="field full">
-            <button type="submit" class="btn btn-primary full">
-              Gerar intervalo
-            </button>
-            <div class="muted small">Dica: use 1–200 por turno para Normal, e mantenha lotes menores.</div>
+            <button type="submit" class="btn btn-primary full">Gerar intervalo</button>
+            <div class="muted small">O sistema ignora números que já existirem hoje.</div>
           </div>
         </form>
 
         <div id="msgGerarIntervalo" class="feedback"></div>
       </div>
-    </section>
+
+</section>
 
     <!-- CADASTRAR (unitária) -->
     <section id="cadastrarSenhaSection" class="panel section section-hidden">
