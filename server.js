@@ -198,7 +198,8 @@ function renderThermalTickets(items, opts = {}) {
         <div class="divider"></div>
 
         <div class="footer">Por favor, aguarde ser chamado no painel.</div>
-      </div><br><br><br><br>
+        <div class="feed"></div>
+      </div>
     `;
   }).join('\n');
 
@@ -215,7 +216,7 @@ function renderThermalTickets(items, opts = {}) {
     .page { width: var(--w); margin: 0 auto; }
 
     /* Compact padding + leve deslocamento para esquerda (menos padding à esquerda) */
-    .ticket { padding: 5mm 6mm 5mm 4mm; page-break-after: always; }
+    .ticket { padding: 5mm 6mm 9mm 4mm; page-break-after: always; }
 
     .brand { text-align:center; font-size: 15px; font-weight: 900; letter-spacing: .9px; text-transform: uppercase; margin: 0; }
     .sub { text-align:center; font-size: 11px; margin: 1.5mm 0 0; font-weight: 700; }
@@ -227,6 +228,7 @@ function renderThermalTickets(items, opts = {}) {
     .senha { text-align:center; font-size: 42px; font-weight: 900; letter-spacing: 2px; margin: 0; line-height: 1; }
 
     .footer { text-align:center; font-size: 9.5px; margin-top: 3mm; line-height: 1.2; }
+    .feed { height: 10mm; }
 
     @media print {
       @page { margin: 0; }
@@ -245,7 +247,7 @@ function renderThermalTickets(items, opts = {}) {
     window.addEventListener('load', () => {
       setTimeout(() => {
         window.print();
-        setTimeout(() => window.close(), 400);
+        setTimeout(() => window.close(), 1500);
       }, 150);
     });
   </script>
