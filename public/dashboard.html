@@ -4,59 +4,77 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>PyDen Senhas - Dashboard</title>
+    <title>PyDen Senhas • Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 
 <body>
-    <header>
-        <h1>PyDen Senhas - Dashboard</h1>
-        <nav>
-            <ul>
-                <li><a href="#" id="btnChamarSenha">Chamar Senha</a></li>
-                <li><a href="/logout">Sair</a></li>
-            </ul>
+    <header class="topbar">
+        <div class="topbar-left">
+            <h1>PyDen Senhas</h1>
+            <span class="subtitle">Dashboard Operacional</span>
+        </div>
+
+        <nav class="topbar-nav">
+            <button class="nav-btn active" data-target="chamarSenhaSection">Chamar Senha</button>
+            <button class="nav-btn" data-target="cadastrarSenhaSection">Cadastrar Senha</button>
+            <button class="nav-btn" data-target="gerenciarBDSection">Gerenciar BD</button>
+            <a href="/logout" class="nav-link">Sair</a>
         </nav>
     </header>
 
-    <!-- Seção para chamar a próxima senha -->
-    <section id="chamarSenhaSection" class="section-active">
+    <!-- CHAMAR SENHA -->
+    <section id="chamarSenhaSection" class="section section-active">
         <h2>Chamar Próxima Senha</h2>
+
         <div class="buttons-container">
-            <button class="btn-chamar" id="chamarNormal">Chamar Senha Normal</button>
-            <button class="btn-chamar" id="chamarPreferencial">Chamar Senha Preferencial</button>
-            <button class="btn-chamar" id="chamarUltima">Rechamar Última Senha</button>
+            <button class="btn-primary" id="chamarNormal">Senha Normal</button>
+            <button class="btn-secondary" id="chamarPreferencial">Preferencial</button>
+            <button class="btn-outline" id="chamarUltima">Rechamar Última</button>
         </div>
-        <div id="lastCalledContainer">
-            <h3>Última senha chamada:</h3>
-            <p id="lastCalled">Nenhuma ainda</p>
+
+        <div id="lastCalledContainer" class="card">
+            <h3>Última senha chamada</h3>
+            <p id="lastCalled">—</p>
         </div>
     </section>
 
-    <!-- Seção para cadastro manual de senha -->
-    <section id="cadastrarSenhaSection" class="section-hidden">
+    <!-- CADASTRAR SENHA -->
+    <section id="cadastrarSenhaSection" class="section section-hidden">
         <h2>Cadastrar Senha Manual</h2>
-        <form id="formCadastroSenhas" action="/cadastrar-senha" method="POST">
-            <label for="tipo">Tipo da Senha:</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">Selecione</option>
-                <option value="N">Normal</option>
-                <option value="P">Preferencial</option>
-            </select>
-            <label for="numero">Número da Senha:</label>
-            <input type="number" name="numero" id="numero" required />
-            <button type="submit">Cadastrar Senha</button>
+
+        <form id="formCadastroSenhas" class="card">
+            <div class="form-group">
+                <label for="tipo">Tipo</label>
+                <select name="tipo" id="tipo" required>
+                    <option value="">Selecione</option>
+                    <option value="N">Normal</option>
+                    <option value="P">Preferencial</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="numero">Número</label>
+                <input type="number" name="numero" id="numero" required />
+            </div>
+
+            <button type="submit" class="btn-primary full">Cadastrar</button>
         </form>
-        <div id="msgCadastro"></div>
+
+        <div id="msgCadastro" class="feedback"></div>
     </section>
 
-    <!-- Seção para gerenciar banco de dados -->
-    <section id="gerenciarBDSection" class="section-hidden">
+    <!-- GERENCIAR BD -->
+    <section id="gerenciarBDSection" class="section section-hidden">
         <h2>Gerenciar Banco de Dados</h2>
-        <div class="buttons-container">
-            <button class="btn-chamar" id="limparSenhas">Limpar Tabela de Senhas</button>
+
+        <div class="card">
+            <button class="btn-danger full" id="limparSenhas">
+                Limpar Todas as Senhas
+            </button>
+
+            <div id="dbMessageContainer" class="feedback"></div>
         </div>
-        <div id="dbMessageContainer"></div>
     </section>
 
     <script src="/socket.io/socket.io.js"></script>
