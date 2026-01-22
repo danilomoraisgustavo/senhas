@@ -172,8 +172,8 @@ function escapeHtml(str){
 }
 
 function renderThermalTickets(items, opts = {}){
-  const title = opts.title || 'PyDen Senhas';
-  const subtitle = opts.subtitle || 'Comprovante de Atendimento';
+  const title = opts.title || 'SETRANE EXPRESS';
+  const subtitle = opts.subtitle || 'Senha de Atendimento';
   const now = new Date();
   const printedAt = now.toLocaleString('pt-BR');
   const tickets = items.map(it => {
@@ -184,16 +184,36 @@ function renderThermalTickets(items, opts = {}){
 
     return `
       <div class="ticket">
-        <div class="brand">${title}</div>
-        <div class="sub">${subtitle}</div>
+        <div class="header">
+          <p class="brand">${title}</p>
+          <p class="sub">${subtitle}</p>
+          <div class="meta-top">
+            <div><strong>Emitida:</strong> ${escapeHtml(created)}</div>
+          </div>
+        </div>
+
         <div class="divider"></div>
-        <div class="senha">${senha}</div>
+
+        <div class="senha-wrap">
+          <div class="senha-label">Sua senha</div>
+          <p class="senha">${senha}</p>
+        </div>
+
+        <div class="divider"></div>
+
         <div class="meta">
           <div><strong>Tipo:</strong> ${tipo === 'N' ? 'Normal' : 'Preferencial'}</div>
-          <div><strong>Emitida:</strong> ${escapeHtml(created)}</div>
         </div>
-        <div class="divider"></div>
-        <div class="footer">Guarde este comprovante.</div>
+
+        <div class="spacer"></div>
+
+        <div class="footer">
+          <div>Por favor, aguarde ser chamado no painel.</div>
+          <div class="spacer"></div>
+          <div><strong>SETRANE EXPRESS</strong></div>
+        </div>
+
+        <div class="spacer-lg"></div>
       </div>
     `;
   }).join('\n');
@@ -212,24 +232,84 @@ function renderThermalTickets(items, opts = {}){
       font-family: Arial, Helvetica, sans-serif;
       background: #fff;
       color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .page {
       width: var(--w);
       margin: 0 auto;
-      padding: 6mm 4mm;
+      padding: 0;
     }
-    .ticket { page-break-after: always; }
-    .brand { text-align:center; font-size: 14px; font-weight: 700; letter-spacing:.2px; }
-    .sub { text-align:center; font-size: 11px; margin-top: 2px; }
-    .divider { border-top: 1px dashed #000; margin: 6px 0; }
-    .senha { text-align:center; font-size: 40px; font-weight: 800; letter-spacing: 1px; margin: 4px 0 6px; }
-    .meta { font-size: 10px; line-height: 1.35; }
-    .footer { text-align:center; font-size: 10px; margin-top: 2px; }
+    .ticket {
+      padding: 8mm 5mm;
+      page-break-after: always;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 6mm;
+    }
+    .brand {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .sub {
+      font-size: 11px;
+      margin: 2mm 0 0;
+      letter-spacing: .2px;
+    }
+    .meta-top {
+      font-size: 10px;
+      margin-top: 3mm;
+      line-height: 1.35;
+    }
+
+    .divider {
+      border-top: 1px dashed #000;
+      margin: 6mm 0;
+    }
+
+    .senha-wrap {
+      text-align: center;
+      padding: 2mm 0 4mm;
+    }
+    .senha-label {
+      font-size: 10px;
+      letter-spacing: .2px;
+      margin-bottom: 2mm;
+      text-transform: uppercase;
+    }
+    .senha {
+      font-size: 44px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin: 0;
+      line-height: 1;
+    }
+
+    .meta {
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      margin-top: 6mm;
+      line-height: 1.35;
+    }
+    .footer strong { font-weight: 800; }
+
+    .spacer { height: 6mm; }
+    .spacer-lg { height: 10mm; }
+
     @media print {
       @page { margin: 0; }
       body { margin: 0; }
-      .page { width: var(--w); padding: 0; }
-      .ticket { padding: 6mm 4mm; }
+      .page { width: var(--w); }
+      .ticket { padding: 8mm 5mm; }
     }
   </style>
 </head>
@@ -281,8 +361,8 @@ app.get('/print/token/:token', checkAuth, async (req, res) => {
     printJobs.delete(token);
 
     const html = renderThermalTickets(job.items, {
-      title: 'PyDen Senhas',
-      subtitle: 'Comprovante'
+      title: 'SETRANE EXPRESS',
+      subtitle: 'Senha de Atendimento'
     });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
