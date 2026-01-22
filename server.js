@@ -22,6 +22,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+
 pool.query('SELECT current_database() db, inet_server_addr() ip', (err, r) => {
     if (err) console.error('[DB] Falha:', err);
     else console.log('[DB] OK:', r.rows[0]);
