@@ -25,6 +25,33 @@ const http = require('http');
 const socketIO = require('socket.io');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+// In-memory print jobs (token -> { userId, createdAt, items: [{id,tipo,numero,created_at}] })
+const printJobs = new Map();
+const PRINT_JOB_TTL_MS = 5 * 60 * 1000; // 5 min
+function createPrintJob(userId, items){
+  const token = crypto.randomUUID();
+  printJobs.set(token, { userId, createdAt: Date.now(), items });
+  return token;
+}
+function getPrintJob(token, userId){
+  const job = printJobs.get(token);
+  if(!job) return null;
+  if(job.userId !== userId) return null;
+  if(Date.now() - job.createdAt > PRINT_JOB_TTL_MS){
+    printJobs.delete(token);
+    return null;
+  }
+  return job;
+}
+setInterval(() => {
+  const now = Date.now();
+  for(const [k,v] of printJobs.entries()){
+    if(now - v.createdAt > PRINT_JOB_TTL_MS) printJobs.delete(k);
+  }
+}, 60 * 1000).unref();
+
 
 const app = express();
 const server = http.createServer(app);
@@ -133,6 +160,96 @@ async function checkLimitesSenhasNormaisParaInserir(qtyToInsert) {
   return { ok: true };
 }
 
+
+
+function escapeHtml(str){
+  return String(str || '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
+}
+
+function renderThermalTickets(items, opts = {}){
+  const title = opts.title || 'PyDen Senhas';
+  const subtitle = opts.subtitle || 'Comprovante de Atendimento';
+  const now = new Date();
+  const printedAt = now.toLocaleString('pt-BR');
+  const tickets = items.map(it => {
+    const tipo = escapeHtml(it.tipo);
+    const numero = escapeHtml(it.numero);
+    const senha = `${tipo}${numero}`;
+    const created = it.created_at ? new Date(it.created_at).toLocaleString('pt-BR') : printedAt;
+
+    return `
+      <div class="ticket">
+        <div class="brand">${title}</div>
+        <div class="sub">${subtitle}</div>
+        <div class="divider"></div>
+        <div class="senha">${senha}</div>
+        <div class="meta">
+          <div><strong>Tipo:</strong> ${tipo === 'N' ? 'Normal' : 'Preferencial'}</div>
+          <div><strong>Emitida:</strong> ${escapeHtml(created)}</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">Guarde este comprovante.</div>
+      </div>
+    `;
+  }).join('\n');
+
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Impressão • PyDen Senhas</title>
+  <style>
+    :root { --w: 80mm; } /* térmica 80mm (funciona bem também em 58mm) */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #fff;
+      color: #000;
+    }
+    .page {
+      width: var(--w);
+      margin: 0 auto;
+      padding: 6mm 4mm;
+    }
+    .ticket { page-break-after: always; }
+    .brand { text-align:center; font-size: 14px; font-weight: 700; letter-spacing:.2px; }
+    .sub { text-align:center; font-size: 11px; margin-top: 2px; }
+    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .senha { text-align:center; font-size: 40px; font-weight: 800; letter-spacing: 1px; margin: 4px 0 6px; }
+    .meta { font-size: 10px; line-height: 1.35; }
+    .footer { text-align:center; font-size: 10px; margin-top: 2px; }
+    @media print {
+      @page { margin: 0; }
+      body { margin: 0; }
+      .page { width: var(--w); padding: 0; }
+      .ticket { padding: 6mm 4mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    ${tickets}
+  </div>
+  <script>
+    // Auto-print
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => window.close(), 400);
+      }, 150);
+    });
+  </script>
+</body>
+</html>`;
+}
+
 // -------------------- Routes --------------------
 app.get('/health', async (req, res) => {
   try {
@@ -151,6 +268,30 @@ app.get('/dashboard', (req, res) => {
 });
 
 app.get('/display', (req, res) => res.sendFile(path.join(__dirname, 'public', 'display.html')));
+
+
+// Impressão (térmica) - gera HTML pronto para imprimir a(s) senha(s)
+app.get('/print/token/:token', checkAuth, async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    const job = getPrintJob(token, req.session.userId);
+    if (!job) return res.status(404).send('Impressão expirada ou inválida.');
+
+    // uma vez impresso, remove para evitar reuso infinito
+    printJobs.delete(token);
+
+    const html = renderThermalTickets(job.items, {
+      title: 'PyDen Senhas',
+      subtitle: 'Comprovante'
+    });
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  } catch (e) {
+    console.error('[PRINT] erro:', e);
+    return res.status(500).send('Erro ao gerar impressão.');
+  }
+});
 
 // -------------------- Auth --------------------
 app.post('/register', async (req, res) => {
@@ -239,7 +380,7 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
          SELECT 1 FROM senhas s
          WHERE s.tipo = $1 AND s.numero = $2 AND DATE(s.created_at) = CURRENT_DATE
        )
-       RETURNING id`,
+       RETURNING id, tipo, numero, created_at`,
       [tipo, numero]
     );
 
@@ -247,8 +388,13 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
       return res.json({ mensagem: `Já existe a senha ${tipo}${numero} hoje. (não inserida)` });
     }
 
-    return res.json({ mensagem: `Senha cadastrada: ${tipo}${numero}` });
-  } catch (e) {
+    const item = insert.rows[0];
+    const token = createPrintJob(req.session.userId, [item]);
+    return res.json({
+      mensagem: `Senha cadastrada: ${tipo}${numero}`,
+      printUrl: `/print/token/${token}`
+    });
+} catch (e) {
     console.error('[CADASTRAR-SENHA] erro:', e);
     return res.json({ mensagem: 'Erro ao cadastrar senha.' });
   }
@@ -261,7 +407,13 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
     const inicio = toPositiveInt(req.body.inicio);
     const fim = toPositiveInt(req.body.fim);
 
-    if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
+    if (!tipo) let printUrl = null;
+    if (inserted > 0) {
+      const token = createPrintJob(req.session.userId, itens);
+      printUrl = `/print/token/${token}`;
+    }
+
+    return res.json({ ok: false, mensagem: 'Tipo inválido.' });
     if (!inicio || !fim) return res.json({ ok: false, mensagem: 'Informe início e fim válidos.' });
 
     const start = Math.min(inicio, fim);
@@ -295,16 +447,18 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
           SELECT 1 FROM senhas x
           WHERE x.tipo = $1 AND x.numero = s.numero AND DATE(x.created_at) = CURRENT_DATE
         )
-        RETURNING numero
+        RETURNING id, tipo, numero, created_at
       )
       SELECT
         (SELECT COUNT(*)::int FROM inseridos) AS inseridos,
-        (SELECT COUNT(*)::int FROM serie) AS solicitados
-      `,
+        (SELECT COUNT(*)::int FROM serie) AS solicitados,
+        COALESCE((SELECT json_agg(inseridos ORDER BY numero ASC) FROM inseridos), '[]'::json) AS itens
+      ,
       [tipo, start, end]
     );
 
     const inserted = q.rows[0]?.inseridos ?? 0;
+    const itens = q.rows[0]?.itens || [];
     const requested = q.rows[0]?.solicitados ?? rangeSize;
     const skipped = requested - inserted;
 
@@ -313,7 +467,8 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
       mensagem: `Geradas ${inserted} senha(s) (${tipo}${start} a ${tipo}${end}).` + (skipped > 0 ? ` ${skipped} já existiam hoje e foram ignoradas.` : ''),
       inseridos: inserted,
       ignorados: skipped,
-      intervalo: { tipo, inicio: start, fim: end }
+      intervalo: { tipo, inicio: start, fim: end },
+      printUrl
     });
   } catch (e) {
     console.error('[GERAR-INTERVALO] erro:', e);
