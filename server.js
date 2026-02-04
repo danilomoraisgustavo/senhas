@@ -116,11 +116,6 @@ function checkAuth(req, res, next) {
   return res.status(401).json({ success: false, message: 'Não autenticado' });
 }
 
-function normalizeFila(fila) {
-  const f = String(fila || '').toUpperCase().trim();
-  return (f === 'E' || f === 'M') ? f : null;
-}
-
 function normalizeTipo(tipo) {
   const t = String(tipo || '').toUpperCase().trim();
   return (t === 'N' || t === 'P') ? t : null;
@@ -137,11 +132,10 @@ function clampInt(n, min, max) {
 }
 
 // Limites (mantém sua regra atual)
-async function checkLimitesSenhasNormaisParaInserir(qtyToInsert, fila) {
+async function checkLimitesSenhasNormaisParaInserir(qtyToInsert) {
   // dia
   const dayCount = await pool.query(
-    "SELECT COUNT(*)::int AS total FROM senhas WHERE tipo='N' AND fila = $1 AND DATE(created_at) = CURRENT_DATE",
-    [fila]
+    "SELECT COUNT(*)::int AS total FROM senhas WHERE tipo='N' AND DATE(created_at) = CURRENT_DATE"
   );
   if (dayCount.rows[0].total + qtyToInsert > 400) {
     return { ok: false, message: 'Limite diário de senhas normais atingido (400).' };
@@ -156,8 +150,7 @@ async function checkLimitesSenhasNormaisParaInserir(qtyToInsert, fila) {
   const shiftCount = await pool.query(
     `SELECT COUNT(*)::int AS total
      FROM senhas
-     WHERE tipo='N' AND fila = $1 AND DATE(created_at) = CURRENT_DATE AND ${shiftCondition}`,
-    [fila]
+     WHERE tipo='N' AND DATE(created_at) = CURRENT_DATE AND ${shiftCondition}`
   );
 
   if (shiftCount.rows[0].total + qtyToInsert > 200) {
@@ -374,15 +367,13 @@ app.get('/logout', (req, res) => req.session.destroy(() => res.redirect('/')));
 // Geração rápida (1 clique): cria a PRÓXIMA senha do dia (sequencial) e já prepara impressão térmica
 // Body: { tipo: 'N'|'P' }
 app.post('/gerar-proxima', checkAuth, async (req, res) => {
-  const fila = normalizeFila(req.body.fila);
   const tipo = normalizeTipo(req.body.tipo);
-  if (!fila) return res.json({ ok: false, mensagem: 'Fila inválida.' });
   if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
 
   try {
     // limites para Normal
     if (tipo === 'N') {
-      const lim = await checkLimitesSenhasNormaisParaInserir(1, fila);
+      const lim = await checkLimitesSenhasNormaisParaInserir(1);
       if (!lim.ok) return res.json({ ok: false, mensagem: lim.message });
     }
 
@@ -390,23 +381,23 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
     await pool.query('BEGIN');
     await pool.query(
       "SELECT pg_advisory_xact_lock(hashtext($1))",
-      [`senhas:${fila}:${tipo}:${new Date().toISOString().slice(0, 10)}`]
+      [`senhas:${tipo}:${new Date().toISOString().slice(0, 10)}`]
     );
 
     const nextQ = await pool.query(
       `SELECT COALESCE(MAX(numero), 0)::int + 1 AS next
        FROM senhas
-       WHERE fila = $1 AND tipo = $2 AND DATE(created_at) = CURRENT_DATE`,
-      [fila, tipo]
+       WHERE tipo = $1 AND DATE(created_at) = CURRENT_DATE`,
+      [tipo]
     );
 
     const nextNum = nextQ.rows[0].next;
 
     const ins = await pool.query(
-      `INSERT INTO senhas (fila, tipo, numero, created_at, chamada)
-       VALUES ($1, $2, $3, NOW(), 0)
+      `INSERT INTO senhas (tipo, numero, created_at, chamada)
+       VALUES ($1, $2, NOW(), 0)
        RETURNING id, tipo, numero, created_at`,
-      [fila, tipo, nextNum]
+      [tipo, nextNum]
     );
 
     await pool.query('COMMIT');
@@ -417,10 +408,9 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
 
     return res.json({
       ok: true,
-      mensagem: `Senha gerada: ${fila}${item.tipo}${item.numero}`,
-      senha: `${fila}${item.tipo}${item.numero}`,
+      mensagem: `Senha gerada: ${item.tipo}${item.numero}`,
+      senha: `${item.tipo}${item.numero}`,
       numero: item.numero,
-      fila,
       tipo: item.tipo,
       printUrl
     });
@@ -435,29 +425,27 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
 // Cadastro unitário (mantém endpoint)
 app.post('/cadastrar-senha', checkAuth, async (req, res) => {
   try {
-    const fila = normalizeFila(req.body.fila);
     const tipo = normalizeTipo(req.body.tipo);
     const numero = toPositiveInt(req.body.numero);
 
-    if (!fila) return res.json({ ok: false, mensagem: 'Fila inválida.' });
-    if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
-    if (!numero) return res.json({ ok: false, mensagem: 'Número inválido.' });
+    if (!tipo) return res.json({ mensagem: 'Tipo inválido.' });
+    if (!numero) return res.json({ mensagem: 'Número inválido.' });
 
     if (tipo === 'N') {
-      const lim = await checkLimitesSenhasNormaisParaInserir(1, fila);
+      const lim = await checkLimitesSenhasNormaisParaInserir(1);
       if (!lim.ok) return res.json({ mensagem: lim.message });
     }
 
     // Dedupe por dia (evita repetir número do mesmo tipo no mesmo dia)
     const insert = await pool.query(
-      `INSERT INTO senhas (fila, tipo, numero, created_at, chamada)
-       SELECT $1, $2, $3, NOW(), 0
+      `INSERT INTO senhas (tipo, numero, created_at, chamada)
+       SELECT $1, $2, NOW(), 0
        WHERE NOT EXISTS (
          SELECT 1 FROM senhas s
-         WHERE s.fila = $1 AND s.tipo = $2 AND s.numero = $3 AND DATE(s.created_at) = CURRENT_DATE
+         WHERE s.tipo = $1 AND s.numero = $2 AND DATE(s.created_at) = CURRENT_DATE
        )
        RETURNING id, tipo, numero, created_at`,
-      [fila, tipo, numero]
+      [tipo, numero]
     );
 
     if (insert.rowCount === 0) {
@@ -480,13 +468,10 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
 // NOVO: gerar por intervalo (inteligente) + impressão térmica
 app.post('/gerar-intervalo', checkAuth, async (req, res) => {
   try {
-    const fila = normalizeFila(req.body.fila);
     const tipo = normalizeTipo(req.body.tipo);
     const inicio = toPositiveInt(req.body.inicio);
     const fim = toPositiveInt(req.body.fim);
 
-    if (!fila) return res.json({ ok: false, mensagem: 'Fila inválida.' });
-    if (!fila) return res.json({ ok: false, mensagem: 'Fila inválida.' });
     if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
     if (!inicio || !fim) return res.json({ ok: false, mensagem: 'Informe início e fim válidos.' });
 
@@ -515,7 +500,7 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
         FROM generate_series($2::int, $3::int) gs
       ),
       inseridos AS (
-        INSERT INTO senhas (fila, tipo, numero, created_at, chamada)
+        INSERT INTO senhas (tipo, numero, created_at, chamada)
         SELECT $1, s.numero, NOW(), 0
         FROM serie s
         WHERE NOT EXISTS (
@@ -561,61 +546,50 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
 // Chamar próxima senha
 app.post('/chamar-senha', checkAuth, async (req, res) => {
   try {
-    const fila = normalizeFila(req.body.fila);
     const tipo = normalizeTipo(req.body.tipo);
-    if (!fila) return res.json({ ok: false, mensagem: 'Fila inválida.' });
-    if (!tipo) return res.json({ ok: false, mensagem: 'Tipo inválido.' });
+    if (!tipo) return res.json({ sucesso: false, mensagem: 'Tipo inválido.' });
 
     const userId = req.session.userId;
 
     const next = await pool.query(
-      `SELECT id, fila, tipo, numero
+      `SELECT id, tipo, numero
        FROM senhas
-       WHERE fila = $1
-         AND tipo = $2
+       WHERE tipo = $1
          AND chamada = 0
          AND DATE(created_at) = CURRENT_DATE
        ORDER BY numero ASC, id ASC
        LIMIT 1`,
-      [fila, tipo]
+      [tipo]
     );
 
     if (next.rows.length === 0) {
-      return res.json({ ok: false, mensagem: 'Não há senhas nessa fila.' });
+      return res.json({ sucesso: false, mensagem: 'Não há senhas desse tipo na fila.' });
     }
 
     const row = next.rows[0];
 
+    const userRes = await pool.query(
+      'SELECT sala, mesa FROM users_senhas WHERE id = $1 LIMIT 1',
+      [userId]
+    );
+    if (userRes.rows.length === 0) {
+      return res.json({ sucesso: false, mensagem: 'Erro ao obter dados do usuário.' });
+    }
+
+    const userRow = userRes.rows[0];
+
     await pool.query(
-      `UPDATE senhas
-       SET chamada = 1,
-           chamado_por = $2,
-           chamado_em = NOW()
-       WHERE id = $1`,
-      [row.id, userId]
+      'UPDATE senhas SET chamada = 1, chamadopor = $1, updated_at = NOW() WHERE id = $2',
+      [userId, row.id]
     );
 
-    const senha = `${row.fila}${row.tipo}${row.numero}`;
+    const senhaChamada = { tipo: row.tipo, numero: row.numero, sala: userRow.sala, mesa: userRow.mesa };
+    io.emit('senhaChamada', senhaChamada);
 
-    // Socket para painel /display
-    io.emit('senhaChamada', {
-      senha,
-      fila: row.fila,
-      tipo: row.tipo,
-      numero: row.numero
-    });
-
-    return res.json({
-      ok: true,
-      mensagem: `Chamando: ${senha}`,
-      senha,
-      fila: row.fila,
-      tipo: row.tipo,
-      numero: row.numero
-    });
+    return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
   } catch (e) {
-    console.error('[CHAMAR] erro:', e);
-    return res.json({ ok: false, mensagem: 'Erro ao chamar senha.' });
+    console.error('[CHAMAR-SENHA] erro:', e);
+    return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
   }
 });
 
@@ -653,30 +627,6 @@ app.post('/rechamar-senha', checkAuth, async (req, res) => {
 });
 
 // Limpar senhas
-
-// Contagens pendentes do dia (por fila/tipo)
-app.get('/contagens', checkAuth, async (req, res) => {
-  try {
-    const q = await pool.query(
-      `SELECT fila, tipo, COUNT(*)::int AS total
-       FROM senhas
-       WHERE chamada = 0 AND DATE(created_at) = CURRENT_DATE
-       GROUP BY fila, tipo`
-    );
-
-    const contagens = { EN: 0, EP: 0, MN: 0, MP: 0 };
-    for (const r of q.rows) {
-      const key = `${r.fila}${r.tipo}`;
-      if (key in contagens) contagens[key] = r.total;
-    }
-
-    return res.json({ ok: true, contagens });
-  } catch (e) {
-    console.error('[CONTAGENS] erro:', e);
-    return res.json({ ok: false, mensagem: 'Erro ao consultar contagens.' });
-  }
-});
-
 app.post('/limpar-senhas', checkAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM senhas');

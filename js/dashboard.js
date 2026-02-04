@@ -1,207 +1,230 @@
-// public/js/dashboard.js
-// Dashboard v2 (filas: Estadual/Municipal + Normal/Prioridade)
+// public/js/dashboard.js (Premium Update)
 
-(function () {
-  // --------- Tabs (views) ----------
-  const navItems = Array.from(document.querySelectorAll('.nav__item[data-view]'));
-  const views = Array.from(document.querySelectorAll('.view'));
+// Socket.io
+const socket = io();
 
-  function setActiveView(viewName) {
-    navItems.forEach(btn => btn.classList.toggle('nav__item--active', btn.dataset.view === viewName));
-    views.forEach(v => v.classList.toggle('view--active', v.id === `view-${viewName}`));
-  }
+// Tabs
+const navButtons = document.querySelectorAll('.nav-btn');
+const sections = document.querySelectorAll('.section');
 
-  navItems.forEach(btn => {
-    btn.addEventListener('click', () => setActiveView(btn.dataset.view));
+const lastCalledElement = document.getElementById('lastCalled');
+
+// Forms
+const formCadastro = document.getElementById('formCadastroSenhas');
+const msgCadastro = document.getElementById('msgCadastro');
+
+const formGerarIntervalo = document.getElementById('formGerarIntervalo');
+const msgGerarIntervalo = document.getElementById('msgGerarIntervalo');
+
+const limparSenhasBtn = document.getElementById('limparSenhas');
+const dbMessageContainer = document.getElementById('dbMessageContainer');
+
+// Buttons
+const chamarNormalBtn = document.getElementById('chamarNormal');
+const chamarPreferencialBtn = document.getElementById('chamarPreferencial');
+const chamarUltimaBtn = document.getElementById('chamarUltima');
+
+// Toast
+const toastEl = document.getElementById('toast');
+let toastTimer = null;
+
+function toast(message, type = 'success') {
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.remove('hidden', 'success', 'error', 'warning');
+  toastEl.classList.add(type);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 3200);
+}
+
+function setFeedback(el, text, type) {
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.remove('success', 'error', 'warning');
+  if (type) el.classList.add(type);
+}
+
+function showSection(targetId) {
+  sections.forEach((sec) => {
+    sec.classList.add('section-hidden');
+    sec.classList.remove('section-active');
   });
 
-  // --------- UI refs ----------
-  const lastCalledMeta = document.getElementById('lastCalledMeta');
-  const lastCalledPill = document.getElementById('lastCalledPill');
-  const lastCalled = document.getElementById('lastCalled');
-  const lastCalledHint = document.getElementById('lastCalledHint');
-
-  const chamarMsg = document.getElementById('chamarMsg');
-  const gerarMsg = document.getElementById('gerarMsg');
-
-  const formCadastro = document.getElementById('formCadastroSenhas');
-  const msgCadastro = document.getElementById('msgCadastro');
-
-  const btnLimparSenhas = document.getElementById('btnLimparSenhas');
-  const dbMessageContainer = document.getElementById('dbMessageContainer');
-
-  const countEN = document.getElementById('count-EN');
-  const countEP = document.getElementById('count-EP');
-  const countMN = document.getElementById('count-MN');
-  const countMP = document.getElementById('count-MP');
-
-  const btnRechamar = document.getElementById('btnRechamar');
-
-  // --------- Helpers ----------
-  function filaLabel(fila) { return fila === 'E' ? 'Estadual' : 'Municipal'; }
-  function tipoLabel(tipo) { return tipo === 'P' ? 'Prioridade' : 'Normal'; }
-
-  function setInlineMessage(el, text, kind) {
-    if (!el) return;
-    el.textContent = text || '';
-    el.classList.remove('inline-alert--success', 'inline-alert--danger', 'inline-alert--info');
-    if (kind === 'success') el.classList.add('inline-alert--success');
-    else if (kind === 'danger') el.classList.add('inline-alert--danger');
-    else el.classList.add('inline-alert--info');
+  const target = document.getElementById(targetId);
+  if (target) {
+    target.classList.remove('section-hidden');
+    target.classList.add('section-active');
   }
 
-  async function postJSON(url, body) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {})
-    });
-    return res.json().catch(() => ({ ok: false, mensagem: 'Resposta inválida do servidor.' }));
+  setFeedback(msgCadastro, '');
+  setFeedback(msgGerarIntervalo, '');
+  setFeedback(dbMessageContainer, '');
+}
+
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const t = await res.text();
+    throw new Error(`Resposta não-JSON (${res.status}): ${t.slice(0, 200)}`);
   }
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
+}
 
-  async function refreshCounts() {
-    try {
-      const res = await fetch('/contagens', { method: 'GET' });
-      const data = await res.json();
-      if (data && data.ok) {
-        if (countEN) countEN.textContent = String(data.contagens.EN ?? 0);
-        if (countEP) countEP.textContent = String(data.contagens.EP ?? 0);
-        if (countMN) countMN.textContent = String(data.contagens.MN ?? 0);
-        if (countMP) countMP.textContent = String(data.contagens.MP ?? 0);
-      }
-    } catch (_) {
-      // silencioso
-    }
-  }
-
-  function updateLastCalled(payload) {
-    if (!payload) return;
-
-    const senha = payload.senha || payload.codigo || payload.display || '';
-    const fila = payload.fila || (senha.startsWith('E') ? 'E' : senha.startsWith('M') ? 'M' : null);
-    const tipo = payload.tipo || (senha.includes('P') ? 'P' : senha.includes('N') ? 'N' : null);
-
-    if (lastCalled) lastCalled.textContent = senha || '-';
-    if (lastCalledPill && fila && tipo) lastCalledPill.textContent = `${filaLabel(fila)} • ${tipoLabel(tipo)}`;
-    if (lastCalledMeta) lastCalledMeta.textContent = payload.atualizado_em ? `Atualizado em ${payload.atualizado_em}` : '';
-    if (lastCalledHint) lastCalledHint.textContent = payload.guiche ? `Guichê: ${payload.guiche}` : '';
-  }
-
-  // --------- Actions (Gerar / Chamar) ----------
-  document.querySelectorAll('button[data-action][data-fila][data-tipo]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const action = btn.dataset.action;
-      const fila = btn.dataset.fila;
-      const tipo = btn.dataset.tipo;
-
-      // feedback rápido
-      btn.disabled = true;
-      const oldText = btn.textContent;
-      btn.textContent = 'Processando...';
-
-      try {
-        if (action === 'gerar') {
-          const r = await postJSON('/gerar-proxima', { fila, tipo });
-          if (r.ok) {
-            setInlineMessage(gerarMsg, r.mensagem || 'Senha gerada.', 'success');
-            if (r.senha) updateLastCalled(r);
-            if (r.printUrl) window.open(r.printUrl, '_blank', 'noopener,noreferrer');
-            await refreshCounts();
-          } else {
-            setInlineMessage(gerarMsg, r.mensagem || 'Não foi possível gerar.', 'danger');
-          }
-        }
-
-        if (action === 'chamar') {
-          const r = await postJSON('/chamar-senha', { fila, tipo });
-          if (r.ok) {
-            setInlineMessage(chamarMsg, r.mensagem || 'Senha chamada.', 'success');
-            if (r.senha) updateLastCalled(r);
-            await refreshCounts();
-          } else {
-            setInlineMessage(chamarMsg, r.mensagem || 'Não foi possível chamar.', 'danger');
-          }
-        }
-      } catch (e) {
-        const msg = 'Erro de comunicação com o servidor.';
-        if (action === 'gerar') setInlineMessage(gerarMsg, msg, 'danger');
-        if (action === 'chamar') setInlineMessage(chamarMsg, msg, 'danger');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = oldText;
-      }
+// Tabs behavior
+if (navButtons && navButtons.length) {
+  navButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const targetId = btn.getAttribute('data-target');
+      if (targetId) showSection(targetId);
     });
   });
 
-  // Rechamar (se existir endpoint)
-  if (btnRechamar) {
-    btnRechamar.addEventListener('click', async () => {
-      btnRechamar.disabled = true;
-      try {
-        const r = await postJSON('/rechamar-senha', {});
-        if (r.ok) {
-          setInlineMessage(chamarMsg, r.mensagem || 'Senha rechamada.', 'success');
-        } else {
-          setInlineMessage(chamarMsg, r.mensagem || 'Não foi possível rechamar.', 'danger');
-        }
-      } catch (_) {
-        setInlineMessage(chamarMsg, 'Erro de comunicação com o servidor.', 'danger');
-      } finally {
-        btnRechamar.disabled = false;
-      }
-    });
+  // initial
+  const active = document.querySelector('.nav-btn.active');
+  if (active) {
+    const targetId = active.getAttribute('data-target');
+    if (targetId) showSection(targetId);
   }
+}
 
-  // Cadastro manual
-  if (formCadastro) {
-    formCadastro.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-
-      const fila = formCadastro.fila?.value;
-      const tipo = formCadastro.tipo?.value;
-      const numero = formCadastro.numero?.value;
-
-      const r = await postJSON('/cadastrar-senha', { fila, tipo, numero });
-      if (r.ok) {
-        setInlineMessage(msgCadastro, r.mensagem || 'Senha cadastrada.', 'success');
-        formCadastro.reset();
-        await refreshCounts();
-      } else {
-        setInlineMessage(msgCadastro, r.mensagem || 'Não foi possível cadastrar.', 'danger');
-      }
-    });
-  }
-
-  // Limpar tabela
-  if (btnLimparSenhas) {
-    btnLimparSenhas.addEventListener('click', async () => {
-      btnLimparSenhas.disabled = true;
-      try {
-        const r = await postJSON('/limpar-senhas', {});
-        if (r.ok) {
-          setInlineMessage(dbMessageContainer, r.mensagem || 'Tabela limpa.', 'success');
-          await refreshCounts();
-        } else {
-          setInlineMessage(dbMessageContainer, r.mensagem || 'Não foi possível limpar.', 'danger');
-        }
-      } catch (_) {
-        setInlineMessage(dbMessageContainer, 'Erro de comunicação com o servidor.', 'danger');
-      } finally {
-        btnLimparSenhas.disabled = false;
-      }
-    });
-  }
-
-  // --------- Socket.io (opcional) ----------
+// Actions
+async function chamarSenha(tipo) {
   try {
-    const socket = io();
-    socket.on('senhaChamada', (payload) => {
-      updateLastCalled(payload);
-      refreshCounts();
-    });
-  } catch (_) { /* sem socket */ }
+    const { data } = await postJson('/chamar-senha', { tipo });
+    if (data.sucesso) {
+      if (lastCalledElement) lastCalledElement.textContent = data.senha;
+      toast(`Chamando ${data.senha}`, 'success');
+    } else {
+      toast(data.mensagem || 'Erro ao chamar senha.', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    toast('Falha ao chamar senha (verifique sessão/backend).', 'error');
+  }
+}
 
-  // init
-  setActiveView('chamar');
-  refreshCounts();
-})();
+async function rechamarUltima() {
+  try {
+    const { data } = await postJson('/rechamar-senha');
+    if (data.sucesso) {
+      if (lastCalledElement) lastCalledElement.textContent = data.senha;
+      toast(`Rechamando ${data.senha}`, 'success');
+    } else {
+      toast(data.mensagem || 'Erro ao rechamar.', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    toast('Falha ao rechamar.', 'error');
+  }
+}
+
+if (chamarNormalBtn) chamarNormalBtn.addEventListener('click', () => chamarSenha('N'));
+if (chamarPreferencialBtn) chamarPreferencialBtn.addEventListener('click', () => chamarSenha('P'));
+if (chamarUltimaBtn) chamarUltimaBtn.addEventListener('click', () => rechamarUltima());
+
+// Cadastro unitário
+if (formCadastro) {
+  formCadastro.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const fd = new FormData(formCadastro);
+      const tipo = fd.get('tipo');
+      const numero = Number.parseInt(fd.get('numero'), 10);
+
+      if (!tipo) {
+        setFeedback(msgCadastro, 'Selecione o tipo.', 'warning');
+        toast('Selecione o tipo.', 'warning');
+        return;
+      }
+      if (!Number.isFinite(numero) || numero <= 0) {
+        setFeedback(msgCadastro, 'Informe um número válido.', 'warning');
+        toast('Informe um número válido.', 'warning');
+        return;
+      }
+
+      const { data } = await postJson('/cadastrar-senha', { tipo, numero });
+
+      setFeedback(msgCadastro, data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
+      toast(data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
+      formCadastro.reset();
+    } catch (e2) {
+      console.error(e2);
+      setFeedback(msgCadastro, 'Erro ao cadastrar senha.', 'error');
+      toast('Erro ao cadastrar senha.', 'error');
+    }
+  });
+}
+
+// Gerar por intervalo
+if (formGerarIntervalo) {
+  formGerarIntervalo.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const fd = new FormData(formGerarIntervalo);
+      const tipo = fd.get('tipo');
+      const inicio = Number.parseInt(fd.get('inicio'), 10);
+      const fim = Number.parseInt(fd.get('fim'), 10);
+
+      if (!tipo) {
+        setFeedback(msgGerarIntervalo, 'Selecione o tipo.', 'warning');
+        toast('Selecione o tipo.', 'warning');
+        return;
+      }
+      if (!Number.isFinite(inicio) || inicio <= 0 || !Number.isFinite(fim) || fim <= 0) {
+        setFeedback(msgGerarIntervalo, 'Informe início e fim válidos.', 'warning');
+        toast('Informe início e fim válidos.', 'warning');
+        return;
+      }
+
+      const { data } = await postJson('/gerar-intervalo', { tipo, inicio, fim });
+
+      if (data.ok) {
+        setFeedback(msgGerarIntervalo, data.mensagem || 'Intervalo gerado.', 'success');
+        toast(data.mensagem || 'Intervalo gerado.', 'success');
+        formGerarIntervalo.reset();
+      } else {
+        setFeedback(msgGerarIntervalo, data.mensagem || 'Falha ao gerar intervalo.', 'error');
+        toast(data.mensagem || 'Falha ao gerar intervalo.', 'error');
+      }
+    } catch (e2) {
+      console.error(e2);
+      setFeedback(msgGerarIntervalo, 'Erro ao gerar intervalo.', 'error');
+      toast('Erro ao gerar intervalo.', 'error');
+    }
+  });
+}
+
+// Limpar senhas
+if (limparSenhasBtn) {
+  limparSenhasBtn.addEventListener('click', async () => {
+    const ok = confirm('Tem certeza que deseja limpar todas as senhas?');
+    if (!ok) return;
+
+    try {
+      const { data } = await postJson('/limpar-senhas');
+      setFeedback(dbMessageContainer, data.mensagem || 'Operação concluída.', 'success');
+      toast(data.mensagem || 'Operação concluída.', 'success');
+    } catch (e) {
+      console.error(e);
+      setFeedback(dbMessageContainer, 'Erro ao limpar senhas.', 'error');
+      toast('Erro ao limpar senhas.', 'error');
+    }
+  });
+}
+
+// Tempo real
+socket.on('senhaChamada', (senha) => {
+  if (!lastCalledElement || !senha) return;
+  const texto = senha.tipo && senha.numero ? `${senha.tipo}${senha.numero}` : (senha.senha || '');
+  if (texto) lastCalledElement.textContent = texto;
+});
