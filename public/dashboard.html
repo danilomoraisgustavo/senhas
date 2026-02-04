@@ -1,180 +1,191 @@
-<!-- public/dashboard.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>PyDen Senhas • Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PyDen Senhas - Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
+
 <body>
   <header class="topbar">
-    <div class="brand">
-      <div class="logo-badge">P</div>
-      <div class="brand-text">
-        <div class="brand-title">PyDen Senhas</div>
-        <div class="brand-subtitle">Operação • Atendimento</div>
+    <div class="topbar__inner">
+      <div class="brand">
+        <div class="brand__logo" aria-hidden="true">P</div>
+        <div class="brand__text">
+          <div class="brand__title">PyDen Senhas</div>
+          <div class="brand__subtitle">Dashboard de atendimento</div>
+        </div>
       </div>
-    </div>
 
-    <nav class="topnav">
-      <button class="tab active nav-btn" data-target="chamarSenhaSection">Chamar</button>
-      <button class="tab nav-btn" data-target="gerarSenhasSection">Gerar</button>
-      <button class="tab nav-btn" data-target="cadastrarSenhaSection">Cadastrar</button>
-      <button class="tab nav-btn" data-target="gerenciarBDSection">BD</button>
-      <a href="/logout" class="logout">Sair</a>
-    </nav>
+      <nav class="nav" aria-label="Navegação">
+        <button class="nav__item nav__item--active" data-view="chamar" type="button">Chamar</button>
+        <button class="nav__item" data-view="gerar" type="button">Gerar</button>
+        <button class="nav__item" data-view="cadastro" type="button">Cadastro manual</button>
+        <button class="nav__item" data-view="banco" type="button">Banco</button>
+        <a class="nav__link" href="/logout">Sair</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="wrap">
-
-    <!-- CHAMAR -->
-    <section id="chamarSenhaSection" class="panel section section-active">
-      <div class="panel-head">
-        <h2>Chamar próxima senha</h2>
-        <p>Use os botões abaixo para chamar a próxima senha na fila.</p>
+  <main class="container">
+    <section class="card card--highlight">
+      <div class="card__header">
+        <div>
+          <h1 class="card__title">Última senha chamada</h1>
+          <p class="card__subtitle" id="lastCalledMeta">Aguardando chamadas…</p>
+        </div>
+        <div class="pill" id="lastCalledPill">—</div>
       </div>
-
-      <div class="grid-actions">
-        <button class="btn btn-primary" id="chamarNormal">
-          <span class="btn-title">Normal</span>
-          <span class="btn-sub">Chamar próxima N</span>
-        </button>
-
-        <button class="btn btn-accent" id="chamarPreferencial">
-          <span class="btn-title">Preferencial</span>
-          <span class="btn-sub">Chamar próxima P</span>
-        </button>
-
-        <button class="btn btn-ghost" id="chamarUltima">
-          <span class="btn-title">Rechamar</span>
-          <span class="btn-sub">Última chamada</span>
-        </button>
-      </div>
-
-      <div class="card highlight">
-        <div class="card-title">Última senha chamada</div>
-        <div id="lastCalled" class="big">—</div>
-        <div class="muted" id="lastCalledHint">Atualiza em tempo real via painel de atendimento.</div>
+      <div class="card__content">
+        <div class="last-called">
+          <div class="last-called__value" id="lastCalled">Nenhuma ainda</div>
+          <div class="last-called__hint" id="lastCalledHint">Use os botões abaixo para chamar ou rechamar.</div>
+        </div>
       </div>
     </section>
 
-    <!-- GERAR (intervalo) -->
-    <section id="gerarSenhasSection" class="panel section section-hidden">
-      <div class="panel-head">
-        <h2>Gerar senhas por intervalo</h2>
-        <p>Geração inteligente: cria várias senhas de uma vez e ignora as que já existirem hoje.</p>
-      </div>
+    <section class="grid">
+      <section class="card view view--active" id="view-chamar">
+        <div class="card__header">
+          <h2 class="card__title">Chamar próxima senha</h2>
+          <p class="card__subtitle">Escolha a fila (Estadual/Municipal) e o tipo (Normal/Prioridade).</p>
+        </div>
 
-      <div class="grid-actions">
-        <button class="btn btn-primary" id="gerarNormalRapido">
-          <span class="btn-title">Normal</span>
-          <span class="btn-sub">1 clique • gera e imprime</span>
-        </button>
-
-        <button class="btn btn-accent" id="gerarPreferencialRapido">
-          <span class="btn-title">Preferencial</span>
-          <span class="btn-sub">1 clique • gera e imprime</span>
-        </button>
-
-        <button class="btn btn-ghost" id="abrirIntervalo">
-          <span class="btn-title">Intervalo</span>
-          <span class="btn-sub">Modo avançado</span>
-        </button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Resultado</div>
-        <div id="msgGerarRapido" class="feedback">Use os botões acima para gerar rapidamente.</div>
-      </div>
-
-      <div id="intervaloBox" class="card" style="display:none;">
-        <div class="card-title">Gerar por intervalo (avançado)</div>
-
-        <form id="formGerarIntervalo" class="form-grid" style="margin-top:10px;">
-          <div class="field">
-            <label for="tipoIntervalo">Tipo</label>
-            <select id="tipoIntervalo" name="tipo" required>
-              <option value="">Selecione</option>
-              <option value="N">Normal</option>
-              <option value="P">Preferencial</option>
-            </select>
+        <div class="card__content">
+          <div class="btn-grid">
+            <button class="btn btn--primary" data-action="chamar" data-fila="E" data-tipo="N" type="button">
+              Estadual • Normal
+            </button>
+            <button class="btn btn--primary" data-action="chamar" data-fila="E" data-tipo="P" type="button">
+              Estadual • Prioridade
+            </button>
+            <button class="btn btn--primary" data-action="chamar" data-fila="M" data-tipo="N" type="button">
+              Municipal • Normal
+            </button>
+            <button class="btn btn--primary" data-action="chamar" data-fila="M" data-tipo="P" type="button">
+              Municipal • Prioridade
+            </button>
           </div>
 
-          <div class="field">
-            <label for="inicioIntervalo">Início</label>
-            <input id="inicioIntervalo" name="inicio" type="number" min="1" placeholder="Ex.: 1" required />
+          <div class="divider"></div>
+
+          <button class="btn btn--ghost" id="btnRechamar" type="button">Rechamar última senha</button>
+
+          <div class="inline-alert inline-alert--info" id="chamarMsg" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="card view" id="view-gerar">
+        <div class="card__header">
+          <h2 class="card__title">Gerar novas senhas</h2>
+          <p class="card__subtitle">Gera a próxima senha automática por fila e prioridade.</p>
+        </div>
+
+        <div class="card__content">
+          <div class="btn-grid">
+            <button class="btn btn--secondary" data-action="gerar" data-fila="E" data-tipo="N" type="button">
+              Gerar • Estadual • Normal
+            </button>
+            <button class="btn btn--secondary" data-action="gerar" data-fila="E" data-tipo="P" type="button">
+              Gerar • Estadual • Prioridade
+            </button>
+            <button class="btn btn--secondary" data-action="gerar" data-fila="M" data-tipo="N" type="button">
+              Gerar • Municipal • Normal
+            </button>
+            <button class="btn btn--secondary" data-action="gerar" data-fila="M" data-tipo="P" type="button">
+              Gerar • Municipal • Prioridade
+            </button>
           </div>
 
-          <div class="field">
-            <label for="fimIntervalo">Fim</label>
-            <input id="fimIntervalo" name="fim" type="number" min="1" placeholder="Ex.: 50" required />
+          <div class="divider"></div>
+
+          <div class="stats" id="stats">
+            <div class="stat">
+              <div class="stat__label">Pendentes (Estadual • Normal)</div>
+              <div class="stat__value" id="count-EN">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Pendentes (Estadual • Prioridade)</div>
+              <div class="stat__value" id="count-EP">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Pendentes (Municipal • Normal)</div>
+              <div class="stat__value" id="count-MN">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Pendentes (Municipal • Prioridade)</div>
+              <div class="stat__value" id="count-MP">—</div>
+            </div>
           </div>
 
-          <div class="field full">
-            <button type="submit" class="btn btn-primary full">Gerar intervalo</button>
-            <div class="muted small">O sistema ignora números que já existirem hoje.</div>
+          <div class="inline-alert inline-alert--success" id="gerarMsg" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="card view" id="view-cadastro">
+        <div class="card__header">
+          <h2 class="card__title">Cadastro manual</h2>
+          <p class="card__subtitle">Use apenas se você precisar lançar uma senha específica.</p>
+        </div>
+
+        <div class="card__content">
+          <form id="formCadastroSenhas">
+            <div class="form-row">
+              <label for="fila">Fila</label>
+              <select name="fila" id="fila" required>
+                <option value="">Selecione</option>
+                <option value="E">Estadual</option>
+                <option value="M">Municipal</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="tipo">Tipo</label>
+              <select name="tipo" id="tipo" required>
+                <option value="">Selecione</option>
+                <option value="N">Normal</option>
+                <option value="P">Prioridade</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="numero">Número</label>
+              <input type="number" name="numero" id="numero" min="1" step="1" placeholder="Ex: 25" required />
+            </div>
+
+            <button class="btn btn--primary" type="submit">Cadastrar</button>
+          </form>
+
+          <div class="inline-alert inline-alert--info" id="msgCadastro" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="card view" id="view-banco">
+        <div class="card__header">
+          <h2 class="card__title">Banco de dados</h2>
+          <p class="card__subtitle">Ações administrativas (cuidado).</p>
+        </div>
+
+        <div class="card__content">
+          <div class="btn-grid">
+            <button class="btn btn--danger" id="btnLimparSenhas" type="button">Limpar tabela de senhas</button>
           </div>
-        </form>
 
-        <div id="msgGerarIntervalo" class="feedback"></div>
-      </div>
-
-</section>
-
-    <!-- CADASTRAR (unitária) -->
-    <section id="cadastrarSenhaSection" class="panel section section-hidden">
-      <div class="panel-head">
-        <h2>Cadastrar senha manual</h2>
-        <p>Cadastre uma senha específica. Se ela já existir hoje, o sistema não duplica.</p>
-      </div>
-
-      <div class="card">
-        <form id="formCadastroSenhas" class="form-grid">
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select name="tipo" id="tipo" required>
-              <option value="">Selecione</option>
-              <option value="N">Normal</option>
-              <option value="P">Preferencial</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="numero">Número</label>
-            <input type="number" name="numero" id="numero" min="1" required />
-          </div>
-
-          <div class="field full">
-            <button type="submit" class="btn btn-primary full">Cadastrar</button>
-          </div>
-        </form>
-
-        <div id="msgCadastro" class="feedback"></div>
-      </div>
+          <div class="inline-alert inline-alert--info" id="dbMessageContainer" role="status" aria-live="polite"></div>
+        </div>
+      </section>
     </section>
-
-    <!-- BD -->
-    <section id="gerenciarBDSection" class="panel section section-hidden">
-      <div class="panel-head">
-        <h2>Gerenciar banco de dados</h2>
-        <p>Ações administrativas (use com cuidado).</p>
-      </div>
-
-      <div class="card">
-        <button class="btn btn-danger full" id="limparSenhas">
-          Limpar todas as senhas
-        </button>
-        <div class="muted small">Isso remove toda a fila e reinicia o contador interno.</div>
-        <div id="dbMessageContainer" class="feedback"></div>
-      </div>
-    </section>
-
   </main>
 
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div class="toast toast--hidden" id="toast" role="status" aria-live="polite"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
+
 </html>
