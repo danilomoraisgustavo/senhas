@@ -8,6 +8,7 @@ const navButtons = document.querySelectorAll('.nav-btn');
 const sections = document.querySelectorAll('.section');
 
 const lastCalledElement = document.getElementById('lastCalled');
+const lastMesaElement = document.getElementById('lastMesa');
 
 // GERAR (rápido)
 const gerarNormalEstadualBtn = document.getElementById('gerarNormalEstadualRapido');
@@ -15,13 +16,7 @@ const gerarPreferencialEstadualBtn = document.getElementById('gerarPreferencialE
 const gerarNormalMunicipalBtn = document.getElementById('gerarNormalMunicipalRapido');
 const gerarPreferencialMunicipalBtn = document.getElementById('gerarPreferencialMunicipalRapido');
 
-const abrirIntervaloBtn = document.getElementById('abrirIntervalo');
-const intervaloBox = document.getElementById('intervaloBox');
 const msgGerarRapido = document.getElementById('msgGerarRapido');
-
-// Intervalo (avançado)
-const formGerarIntervalo = document.getElementById('formGerarIntervalo');
-const msgGerarIntervalo = document.getElementById('msgGerarIntervalo');
 
 // BD
 const limparSenhasBtn = document.getElementById('limparSenhas');
@@ -70,8 +65,6 @@ function showSection(targetId) {
     target.classList.remove('section-hidden');
     target.classList.add('section-active');
   }
-
-  setFeedback(msgGerarIntervalo, '');
   setFeedback(dbMessageContainer, '');
 }
 
@@ -144,6 +137,7 @@ async function chamarSenha(tipo) {
     const { data } = await postJson('/chamar-senha', { tipo });
     if (data.sucesso) {
       if (lastCalledElement) lastCalledElement.textContent = data.senha;
+      if (lastMesaElement) lastMesaElement.textContent = `Mesa: ${data.mesa ?? '—'}`;
       toast(`Chamando ${data.senha}`, 'success');
     } else {
       toast(data.mensagem || 'Erro ao chamar senha.', 'error');
@@ -159,6 +153,7 @@ async function rechamarUltima() {
     const { data } = await postJson('/rechamar-senha');
     if (data.sucesso) {
       if (lastCalledElement) lastCalledElement.textContent = data.senha;
+      if (lastMesaElement) lastMesaElement.textContent = `Mesa: ${data.mesa ?? '—'}`;
       toast(`Rechamando ${data.senha}`, 'success');
     } else {
       toast(data.mensagem || 'Erro ao rechamar.', 'error');
@@ -180,54 +175,6 @@ if (gerarNormalEstadualBtn) gerarNormalEstadualBtn.addEventListener('click', () 
 if (gerarPreferencialEstadualBtn) gerarPreferencialEstadualBtn.addEventListener('click', () => gerarProxima('EP'));
 if (gerarNormalMunicipalBtn) gerarNormalMunicipalBtn.addEventListener('click', () => gerarProxima('MN'));
 if (gerarPreferencialMunicipalBtn) gerarPreferencialMunicipalBtn.addEventListener('click', () => gerarProxima('MP'));
-
-if (abrirIntervaloBtn && intervaloBox) {
-  abrirIntervaloBtn.addEventListener('click', () => {
-    const open = intervaloBox.style.display !== 'none';
-    intervaloBox.style.display = open ? 'none' : 'block';
-    toast(open ? 'Intervalo fechado.' : 'Intervalo aberto.', 'warning');
-  });
-}
-
-// Gerar por intervalo
-if (formGerarIntervalo) {
-  formGerarIntervalo.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      const fd = new FormData(formGerarIntervalo);
-      const tipo = fd.get('tipo');
-      const inicio = Number.parseInt(fd.get('inicio'), 10);
-      const fim = Number.parseInt(fd.get('fim'), 10);
-
-      if (!tipo) {
-        setFeedback(msgGerarIntervalo, 'Selecione o tipo.', 'warning');
-        toast('Selecione o tipo.', 'warning');
-        return;
-      }
-      if (!Number.isFinite(inicio) || inicio <= 0 || !Number.isFinite(fim) || fim <= 0) {
-        setFeedback(msgGerarIntervalo, 'Informe início e fim válidos.', 'warning');
-        toast('Informe início e fim válidos.', 'warning');
-        return;
-      }
-
-      const { data } = await postJson('/gerar-intervalo', { tipo, inicio, fim });
-
-      if (data.ok) {
-        setFeedback(msgGerarIntervalo, data.mensagem || 'Intervalo gerado.', 'success');
-        toast(data.mensagem || 'Intervalo gerado.', 'success');
-        if (data.printUrl) openPrint(data.printUrl);
-        formGerarIntervalo.reset();
-      } else {
-        setFeedback(msgGerarIntervalo, data.mensagem || 'Falha ao gerar intervalo.', 'error');
-        toast(data.mensagem || 'Falha ao gerar intervalo.', 'error');
-      }
-    } catch (e2) {
-      console.error(e2);
-      setFeedback(msgGerarIntervalo, 'Erro ao gerar intervalo.', 'error');
-      toast('Erro ao gerar intervalo.', 'error');
-    }
-  });
-}
 
 // Limpar senhas
 if (limparSenhasBtn) {
@@ -261,9 +208,11 @@ socket.on('senhaChamada', (senha) => {
     const origem = t.startsWith('M') ? 'MUNICIPAL' : (t.startsWith('E') ? 'ESTADUAL' : '');
     const prio = t.endsWith('P') ? 'P' : 'N';
     lastCalledElement.textContent = origem ? `${origem} ${prio}${numero}` : `${t}${numero}`;
+    if (lastMesaElement) lastMesaElement.textContent = `Mesa: ${senha.mesa ?? '—'}`;
     return;
   }
 
   // fallback
   if (senha.senha) lastCalledElement.textContent = senha.senha;
+  if (lastMesaElement) lastMesaElement.textContent = `Mesa: ${senha.mesa ?? '—'}`;
 });
