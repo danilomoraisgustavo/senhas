@@ -66,7 +66,6 @@
       <div class="card highlight">
         <div class="card-title">Última senha chamada</div>
         <div id="lastCalled" class="big">—</div>
-        <div class="muted" id="lastMesa">Mesa: —</div>
         <div class="muted" id="lastCalledHint">Atualiza em tempo real via painel de atendimento.</div>
       </div>
     </section>
@@ -75,20 +74,10 @@
     <section id="gerarSenhasSection" class="panel section section-hidden">
       <div class="panel-head">
         <h2>Gerar senhas</h2>
-        <p>Geração rápida (1 clique).</p>
+        <p>Geração rápida (1 clique) ou por intervalo (modo avançado).</p>
       </div>
 
       <div class="grid-actions">
-        <button class="btn btn-primary" id="gerarNormalMunicipalRapido">
-          <span class="btn-title">Normal Municipal</span>
-          <span class="btn-sub">1 clique • gera e imprime</span>
-        </button>
-
-        <button class="btn btn-accent" id="gerarPreferencialMunicipalRapido">
-          <span class="btn-title">Preferencial Municipal</span>
-          <span class="btn-sub">1 clique • gera e imprime</span>
-        </button>
-
         <button class="btn btn-primary" id="gerarNormalEstadualRapido">
           <span class="btn-title">Normal Estadual</span>
           <span class="btn-sub">1 clique • gera e imprime</span>
@@ -99,18 +88,59 @@
           <span class="btn-sub">1 clique • gera e imprime</span>
         </button>
 
+        <button class="btn btn-primary" id="gerarNormalMunicipalRapido">
+          <span class="btn-title">Normal Municipal</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
 
+        <button class="btn btn-accent" id="gerarPreferencialMunicipalRapido">
+          <span class="btn-title">Preferencial Municipal</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
 
-
-
-
-
-
+        <button class="btn btn-ghost" id="abrirIntervalo">
+          <span class="btn-title">Intervalo</span>
+          <span class="btn-sub">Modo avançado</span>
+        </button>
       </div>
 
       <div class="card">
         <div class="card-title">Resultado</div>
         <div id="msgGerarRapido" class="feedback">Use os botões acima para gerar rapidamente.</div>
+      </div>
+
+      <div id="intervaloBox" class="card" style="display:none;">
+        <div class="card-title">Gerar por intervalo (avançado)</div>
+
+        <form id="formGerarIntervalo" class="form-grid" style="margin-top:10px;">
+          <div class="field">
+            <label for="tipoIntervalo">Tipo</label>
+            <select id="tipoIntervalo" name="tipo" required>
+              <option value="">Selecione</option>
+              <option value="EN">Normal Estadual</option>
+              <option value="EP">Preferencial Estadual</option>
+              <option value="MN">Normal Municipal</option>
+              <option value="MP">Preferencial Municipal</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="inicioIntervalo">Início</label>
+            <input id="inicioIntervalo" name="inicio" type="number" min="1" placeholder="Ex.: 1" required />
+          </div>
+
+          <div class="field">
+            <label for="fimIntervalo">Fim</label>
+            <input id="fimIntervalo" name="fim" type="number" min="1" placeholder="Ex.: 50" required />
+          </div>
+
+          <div class="field full">
+            <button type="submit" class="btn btn-primary full">Gerar intervalo</button>
+            <div class="muted small">O sistema ignora números que já existirem hoje (mesmo tipo).</div>
+          </div>
+        </form>
+
+        <div id="msgGerarIntervalo" class="feedback"></div>
       </div>
     </section>
 
