@@ -22,7 +22,6 @@
     <nav class="topnav">
       <button class="tab active nav-btn" data-target="chamarSenhaSection">Chamar</button>
       <button class="tab nav-btn" data-target="gerarSenhasSection">Gerar</button>
-      <button class="tab nav-btn" data-target="cadastrarSenhaSection">Cadastrar</button>
       <button class="tab nav-btn" data-target="gerenciarBDSection">BD</button>
       <a href="/logout" class="logout">Sair</a>
     </nav>
@@ -34,18 +33,28 @@
     <section id="chamarSenhaSection" class="panel section section-active">
       <div class="panel-head">
         <h2>Chamar próxima senha</h2>
-        <p>Use os botões abaixo para chamar a próxima senha na fila.</p>
+        <p>Escolha o tipo de fila para chamar a próxima senha.</p>
       </div>
 
       <div class="grid-actions">
-        <button class="btn btn-primary" id="chamarNormal">
-          <span class="btn-title">Normal</span>
-          <span class="btn-sub">Chamar próxima N</span>
+        <button class="btn btn-primary" id="chamarNormalEstadual">
+          <span class="btn-title">Normal Estadual</span>
+          <span class="btn-sub">Chamar próxima</span>
         </button>
 
-        <button class="btn btn-accent" id="chamarPreferencial">
-          <span class="btn-title">Preferencial</span>
-          <span class="btn-sub">Chamar próxima P</span>
+        <button class="btn btn-accent" id="chamarPreferencialEstadual">
+          <span class="btn-title">Preferencial Estadual</span>
+          <span class="btn-sub">Chamar próxima</span>
+        </button>
+
+        <button class="btn btn-primary" id="chamarNormalMunicipal">
+          <span class="btn-title">Normal Municipal</span>
+          <span class="btn-sub">Chamar próxima</span>
+        </button>
+
+        <button class="btn btn-accent" id="chamarPreferencialMunicipal">
+          <span class="btn-title">Preferencial Municipal</span>
+          <span class="btn-sub">Chamar próxima</span>
         </button>
 
         <button class="btn btn-ghost" id="chamarUltima">
@@ -61,21 +70,31 @@
       </div>
     </section>
 
-    <!-- GERAR (intervalo) -->
+    <!-- GERAR -->
     <section id="gerarSenhasSection" class="panel section section-hidden">
       <div class="panel-head">
-        <h2>Gerar senhas por intervalo</h2>
-        <p>Geração inteligente: cria várias senhas de uma vez e ignora as que já existirem hoje.</p>
+        <h2>Gerar senhas</h2>
+        <p>Geração rápida (1 clique) ou por intervalo (modo avançado).</p>
       </div>
 
       <div class="grid-actions">
-        <button class="btn btn-primary" id="gerarNormalRapido">
-          <span class="btn-title">Normal</span>
+        <button class="btn btn-primary" id="gerarNormalEstadualRapido">
+          <span class="btn-title">Normal Estadual</span>
           <span class="btn-sub">1 clique • gera e imprime</span>
         </button>
 
-        <button class="btn btn-accent" id="gerarPreferencialRapido">
-          <span class="btn-title">Preferencial</span>
+        <button class="btn btn-accent" id="gerarPreferencialEstadualRapido">
+          <span class="btn-title">Preferencial Estadual</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
+
+        <button class="btn btn-primary" id="gerarNormalMunicipalRapido">
+          <span class="btn-title">Normal Municipal</span>
+          <span class="btn-sub">1 clique • gera e imprime</span>
+        </button>
+
+        <button class="btn btn-accent" id="gerarPreferencialMunicipalRapido">
+          <span class="btn-title">Preferencial Municipal</span>
           <span class="btn-sub">1 clique • gera e imprime</span>
         </button>
 
@@ -98,8 +117,10 @@
             <label for="tipoIntervalo">Tipo</label>
             <select id="tipoIntervalo" name="tipo" required>
               <option value="">Selecione</option>
-              <option value="N">Normal</option>
-              <option value="P">Preferencial</option>
+              <option value="EN">Normal Estadual</option>
+              <option value="EP">Preferencial Estadual</option>
+              <option value="MN">Normal Municipal</option>
+              <option value="MP">Preferencial Municipal</option>
             </select>
           </div>
 
@@ -115,44 +136,11 @@
 
           <div class="field full">
             <button type="submit" class="btn btn-primary full">Gerar intervalo</button>
-            <div class="muted small">O sistema ignora números que já existirem hoje.</div>
+            <div class="muted small">O sistema ignora números que já existirem hoje (mesmo tipo).</div>
           </div>
         </form>
 
         <div id="msgGerarIntervalo" class="feedback"></div>
-      </div>
-
-    </section>
-
-    <!-- CADASTRAR (unitária) -->
-    <section id="cadastrarSenhaSection" class="panel section section-hidden">
-      <div class="panel-head">
-        <h2>Cadastrar senha manual</h2>
-        <p>Cadastre uma senha específica. Se ela já existir hoje, o sistema não duplica.</p>
-      </div>
-
-      <div class="card">
-        <form id="formCadastroSenhas" class="form-grid">
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select name="tipo" id="tipo" required>
-              <option value="">Selecione</option>
-              <option value="N">Normal</option>
-              <option value="P">Preferencial</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="numero">Número</label>
-            <input type="number" name="numero" id="numero" min="1" required />
-          </div>
-
-          <div class="field full">
-            <button type="submit" class="btn btn-primary full">Cadastrar</button>
-          </div>
-        </form>
-
-        <div id="msgCadastro" class="feedback"></div>
       </div>
     </section>
 

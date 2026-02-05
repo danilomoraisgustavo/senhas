@@ -117,8 +117,31 @@ function checkAuth(req, res, next) {
 }
 
 function normalizeTipo(tipo) {
+  // Tipos aceitos:
+  //   EN = Normal Estadual
+  //   EP = Preferencial Estadual
+  //   MN = Normal Municipal
+  //   MP = Preferencial Municipal
+  // Compat: N/P (antigo) -> MN/MP
   const t = String(tipo || '').toUpperCase().trim();
-  return (t === 'N' || t === 'P') ? t : null;
+  if (t === 'N') return 'MN';
+  if (t === 'P') return 'MP';
+  return (t === 'EN' || t === 'EP' || t === 'MN' || t === 'MP') ? t : null;
+}
+
+function parseTipo(tipo) {
+  const t = normalizeTipo(tipo);
+  if (!t) return null;
+  const origem = t.startsWith('M') ? 'MUNICIPAL' : (t.startsWith('E') ? 'ESTADUAL' : '');
+  const prioridade = t.endsWith('P') ? 'PREFERENCIAL' : 'NORMAL';
+  const letra = t.endsWith('P') ? 'P' : 'N';
+  return { t, origem, prioridade, letra };
+}
+
+function formatSenha(tipo, numero) {
+  const info = parseTipo(tipo);
+  if (!info) return String(tipo || '') + String(numero || '');
+  return `${info.origem} ${info.letra}${numero}`;
 }
 
 function toPositiveInt(v) {
@@ -135,7 +158,7 @@ function clampInt(n, min, max) {
 async function checkLimitesSenhasNormaisParaInserir(qtyToInsert) {
   // dia
   const dayCount = await pool.query(
-    "SELECT COUNT(*)::int AS total FROM senhas WHERE tipo='N' AND DATE(created_at) = CURRENT_DATE"
+    "SELECT COUNT(*)::int AS total FROM senhas WHERE tipo IN ('EN','MN') AND DATE(created_at) = CURRENT_DATE"
   );
   if (dayCount.rows[0].total + qtyToInsert > 400) {
     return { ok: false, message: 'Limite diário de senhas normais atingido (400).' };
@@ -150,7 +173,7 @@ async function checkLimitesSenhasNormaisParaInserir(qtyToInsert) {
   const shiftCount = await pool.query(
     `SELECT COUNT(*)::int AS total
      FROM senhas
-     WHERE tipo='N' AND DATE(created_at) = CURRENT_DATE AND ${shiftCondition}`
+     WHERE tipo IN ('EN','MN') AND DATE(created_at) = CURRENT_DATE AND ${shiftCondition}`
   );
 
   if (shiftCount.rows[0].total + qtyToInsert > 200) {
@@ -179,9 +202,12 @@ function renderThermalTickets(items, opts = {}) {
   const fmt = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: tz });
   const printedAt = fmt(now);
   const tickets = items.map(it => {
-    const tipo = escapeHtml(it.tipo);
+    const tipoRaw = String(it.tipo || '');
     const numero = escapeHtml(it.numero);
-    const senha = `${tipo}${numero}`;
+    const info = parseTipo(tipoRaw) || { origem: '', letra: escapeHtml(tipoRaw) };
+    const origem = escapeHtml(info.origem || '');
+    const letra = escapeHtml(info.letra || String(tipoRaw));
+    const senha = `${letra}${numero}`;
     const created = it.created_at ? fmt(it.created_at) : printedAt;
 
     return `
@@ -189,6 +215,7 @@ function renderThermalTickets(items, opts = {}) {
         <p class="brand">${title}</p>
         <p class="sub">${subtitle}</p>
         <p class="emitida">Emitida: ${escapeHtml(created)}</p>
+        ${origem ? `<p class="origem">${origem}</p>` : ''}
 
         <div class="divider"></div>
 
@@ -221,6 +248,7 @@ function renderThermalTickets(items, opts = {}) {
     .brand { text-align:center; font-size: 15px; font-weight: 900; letter-spacing: .9px; text-transform: uppercase; margin: 0; }
     .sub { text-align:center; font-size: 11px; margin: 1.5mm 0 0; font-weight: 700; }
     .emitida { text-align:center; font-size: 9.5px; margin: 2mm 0 0; line-height: 1.2; }
+    .origem { text-align:center; font-size: 12px; margin: 2mm 0 0; font-weight: 900; letter-spacing: .8px; text-transform: uppercase; }
 
     .divider { border-top: 1px dashed #000; margin: 3.5mm 0; }
 
@@ -408,8 +436,8 @@ app.post('/gerar-proxima', checkAuth, async (req, res) => {
 
     return res.json({
       ok: true,
-      mensagem: `Senha gerada: ${item.tipo}${item.numero}`,
-      senha: `${item.tipo}${item.numero}`,
+      mensagem: `Senha gerada: ${formatSenha(item.tipo, item.numero)}`,
+      senha: formatSenha(item.tipo, item.numero),
       numero: item.numero,
       tipo: item.tipo,
       printUrl
@@ -449,13 +477,13 @@ app.post('/cadastrar-senha', checkAuth, async (req, res) => {
     );
 
     if (insert.rowCount === 0) {
-      return res.json({ mensagem: `Já existe a senha ${tipo}${numero} hoje. (não inserida)` });
+      return res.json({ mensagem: `Já existe a senha ${formatSenha(tipo, numero)} hoje. (não inserida)` });
     }
 
     const item = insert.rows[0];
     const token = createPrintJob(req.session.userId, [item]);
     return res.json({
-      mensagem: `Senha cadastrada: ${tipo}${numero}`,
+      mensagem: `Senha cadastrada: ${formatSenha(tipo, numero)}`,
       printUrl: `/print/token/${token}`
     });
   } catch (e) {
@@ -530,7 +558,7 @@ app.post('/gerar-intervalo', checkAuth, async (req, res) => {
 
     return res.json({
       ok: true,
-      mensagem: `Geradas ${inserted} senha(s) (${tipo}${start} a ${tipo}${end}).` +
+      mensagem: `Geradas ${inserted} senha(s) (${formatSenha(tipo, start)} a ${formatSenha(tipo, end)}).` +
         (skipped > 0 ? ` ${skipped} já existiam hoje e foram ignoradas.` : ''),
       inseridos: inserted,
       ignorados: skipped,
@@ -586,7 +614,7 @@ app.post('/chamar-senha', checkAuth, async (req, res) => {
     const senhaChamada = { tipo: row.tipo, numero: row.numero, sala: userRow.sala, mesa: userRow.mesa };
     io.emit('senhaChamada', senhaChamada);
 
-    return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
+    return res.json({ sucesso: true, senha: formatSenha(row.tipo, row.numero) });
   } catch (e) {
     console.error('[CHAMAR-SENHA] erro:', e);
     return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });
@@ -619,7 +647,7 @@ app.post('/rechamar-senha', checkAuth, async (req, res) => {
     const senhaChamada = { tipo: row.tipo, numero: row.numero, sala: row.sala, mesa: row.mesa };
     io.emit('senhaChamada', senhaChamada);
 
-    return res.json({ sucesso: true, senha: `${row.tipo}${row.numero}` });
+    return res.json({ sucesso: true, senha: formatSenha(row.tipo, row.numero) });
   } catch (e) {
     console.error('[RECHAMAR-SENHA] erro:', e);
     return res.json({ sucesso: false, mensagem: 'Erro no banco de dados.' });

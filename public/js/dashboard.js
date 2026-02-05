@@ -1,4 +1,4 @@
-// public/js/dashboard.js (Premium Update)
+// public/js/dashboard.js (Atualizado: Municipal/Estadual)
 
 // Socket.io
 const socket = io();
@@ -9,26 +9,29 @@ const sections = document.querySelectorAll('.section');
 
 const lastCalledElement = document.getElementById('lastCalled');
 
+// GERAR (rápido)
+const gerarNormalEstadualBtn = document.getElementById('gerarNormalEstadualRapido');
+const gerarPreferencialEstadualBtn = document.getElementById('gerarPreferencialEstadualRapido');
+const gerarNormalMunicipalBtn = document.getElementById('gerarNormalMunicipalRapido');
+const gerarPreferencialMunicipalBtn = document.getElementById('gerarPreferencialMunicipalRapido');
 
-const gerarNormalRapidoBtn = document.getElementById('gerarNormalRapido');
-const gerarPreferencialRapidoBtn = document.getElementById('gerarPreferencialRapido');
 const abrirIntervaloBtn = document.getElementById('abrirIntervalo');
 const intervaloBox = document.getElementById('intervaloBox');
 const msgGerarRapido = document.getElementById('msgGerarRapido');
 
-// Forms
-const formCadastro = document.getElementById('formCadastroSenhas');
-const msgCadastro = document.getElementById('msgCadastro');
-
+// Intervalo (avançado)
 const formGerarIntervalo = document.getElementById('formGerarIntervalo');
 const msgGerarIntervalo = document.getElementById('msgGerarIntervalo');
 
+// BD
 const limparSenhasBtn = document.getElementById('limparSenhas');
 const dbMessageContainer = document.getElementById('dbMessageContainer');
 
-// Buttons
-const chamarNormalBtn = document.getElementById('chamarNormal');
-const chamarPreferencialBtn = document.getElementById('chamarPreferencial');
+// CHAMAR
+const chamarNormalEstadualBtn = document.getElementById('chamarNormalEstadual');
+const chamarPreferencialEstadualBtn = document.getElementById('chamarPreferencialEstadual');
+const chamarNormalMunicipalBtn = document.getElementById('chamarNormalMunicipal');
+const chamarPreferencialMunicipalBtn = document.getElementById('chamarPreferencialMunicipal');
 const chamarUltimaBtn = document.getElementById('chamarUltima');
 
 // Toast
@@ -44,10 +47,8 @@ function toast(message, type = 'success') {
   toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 3200);
 }
 
-
-function openPrint(printUrl){
-  if(!printUrl) return;
-  // abre em nova aba/janela para permitir impressão térmica (evita bloqueio de pop-up quando acionado por click)
+function openPrint(printUrl) {
+  if (!printUrl) return;
   window.open(printUrl, '_blank', 'noopener,noreferrer');
 }
 
@@ -70,7 +71,6 @@ function showSection(targetId) {
     target.classList.add('section-active');
   }
 
-  setFeedback(msgCadastro, '');
   setFeedback(msgGerarIntervalo, '');
   setFeedback(dbMessageContainer, '');
 }
@@ -91,11 +91,21 @@ async function postJson(url, body) {
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
-async function gerarProxima(tipo){
-  try{
+
+function labelTipo(tipo) {
+  const t = String(tipo || '').toUpperCase();
+  if (t === 'EN') return 'Normal Estadual';
+  if (t === 'EP') return 'Preferencial Estadual';
+  if (t === 'MN') return 'Normal Municipal';
+  if (t === 'MP') return 'Preferencial Municipal';
+  return t || '—';
+}
+
+async function gerarProxima(tipo) {
+  try {
     if (msgGerarRapido) setFeedback(msgGerarRapido, 'Gerando...', 'warning');
     const { data } = await postJson('/gerar-proxima', { tipo });
-    if (data.ok){
+    if (data.ok) {
       if (msgGerarRapido) setFeedback(msgGerarRapido, data.mensagem || 'Senha gerada.', 'success');
       toast(data.mensagem || 'Senha gerada.', 'success');
       if (data.printUrl) openPrint(data.printUrl);
@@ -103,14 +113,12 @@ async function gerarProxima(tipo){
       if (msgGerarRapido) setFeedback(msgGerarRapido, data.mensagem || 'Falha ao gerar.', 'error');
       toast(data.mensagem || 'Falha ao gerar.', 'error');
     }
-  } catch(e){
+  } catch (e) {
     console.error(e);
     if (msgGerarRapido) setFeedback(msgGerarRapido, 'Erro ao gerar senha.', 'error');
     toast('Erro ao gerar senha.', 'error');
   }
 }
-
-
 
 // Tabs behavior
 if (navButtons && navButtons.length) {
@@ -123,7 +131,6 @@ if (navButtons && navButtons.length) {
     });
   });
 
-  // initial
   const active = document.querySelector('.nav-btn.active');
   if (active) {
     const targetId = active.getAttribute('data-target');
@@ -131,7 +138,7 @@ if (navButtons && navButtons.length) {
   }
 }
 
-// Actions
+// CHAMAR
 async function chamarSenha(tipo) {
   try {
     const { data } = await postJson('/chamar-senha', { tipo });
@@ -162,53 +169,23 @@ async function rechamarUltima() {
   }
 }
 
-if (chamarNormalBtn) chamarNormalBtn.addEventListener('click', () => chamarSenha('N'));
-if (chamarPreferencialBtn) chamarPreferencialBtn.addEventListener('click', () => chamarSenha('P'));
+if (chamarNormalEstadualBtn) chamarNormalEstadualBtn.addEventListener('click', () => chamarSenha('EN'));
+if (chamarPreferencialEstadualBtn) chamarPreferencialEstadualBtn.addEventListener('click', () => chamarSenha('EP'));
+if (chamarNormalMunicipalBtn) chamarNormalMunicipalBtn.addEventListener('click', () => chamarSenha('MN'));
+if (chamarPreferencialMunicipalBtn) chamarPreferencialMunicipalBtn.addEventListener('click', () => chamarSenha('MP'));
 if (chamarUltimaBtn) chamarUltimaBtn.addEventListener('click', () => rechamarUltima());
-if (gerarNormalRapidoBtn) gerarNormalRapidoBtn.addEventListener('click', () => gerarProxima('N'));
-if (gerarPreferencialRapidoBtn) gerarPreferencialRapidoBtn.addEventListener('click', () => gerarProxima('P'));
 
-if (abrirIntervaloBtn && intervaloBox){
+// GERAR (rápido)
+if (gerarNormalEstadualBtn) gerarNormalEstadualBtn.addEventListener('click', () => gerarProxima('EN'));
+if (gerarPreferencialEstadualBtn) gerarPreferencialEstadualBtn.addEventListener('click', () => gerarProxima('EP'));
+if (gerarNormalMunicipalBtn) gerarNormalMunicipalBtn.addEventListener('click', () => gerarProxima('MN'));
+if (gerarPreferencialMunicipalBtn) gerarPreferencialMunicipalBtn.addEventListener('click', () => gerarProxima('MP'));
+
+if (abrirIntervaloBtn && intervaloBox) {
   abrirIntervaloBtn.addEventListener('click', () => {
     const open = intervaloBox.style.display !== 'none';
     intervaloBox.style.display = open ? 'none' : 'block';
     toast(open ? 'Intervalo fechado.' : 'Intervalo aberto.', 'warning');
-  });
-}
-
-
-
-// Cadastro unitário
-if (formCadastro) {
-  formCadastro.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      const fd = new FormData(formCadastro);
-      const tipo = fd.get('tipo');
-      const numero = Number.parseInt(fd.get('numero'), 10);
-
-      if (!tipo) {
-        setFeedback(msgCadastro, 'Selecione o tipo.', 'warning');
-        toast('Selecione o tipo.', 'warning');
-        return;
-      }
-      if (!Number.isFinite(numero) || numero <= 0) {
-        setFeedback(msgCadastro, 'Informe um número válido.', 'warning');
-        toast('Informe um número válido.', 'warning');
-        return;
-      }
-
-      const { data } = await postJson('/cadastrar-senha', { tipo, numero });
-
-      setFeedback(msgCadastro, data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
-      toast(data.mensagem || 'Concluído.', data.mensagem?.toLowerCase().includes('erro') ? 'error' : 'success');
-      if (data.printUrl) openPrint(data.printUrl);
-      formCadastro.reset();
-    } catch (e2) {
-      console.error(e2);
-      setFeedback(msgCadastro, 'Erro ao cadastrar senha.', 'error');
-      toast('Erro ao cadastrar senha.', 'error');
-    }
   });
 }
 
@@ -273,6 +250,20 @@ if (limparSenhasBtn) {
 // Tempo real
 socket.on('senhaChamada', (senha) => {
   if (!lastCalledElement || !senha) return;
-  const texto = senha.tipo && senha.numero ? `${senha.tipo}${senha.numero}` : (senha.senha || '');
-  if (texto) lastCalledElement.textContent = texto;
+
+  // backend envia: { tipo:'EN'|'EP'|'MN'|'MP', numero, ... }
+  const t = String(senha.tipo || '').toUpperCase();
+  const numero = senha.numero;
+  const label = labelTipo(t);
+
+  if (t && numero != null) {
+    // Exibe no painel: "MUNICIPAL N12" / "ESTADUAL P7"
+    const origem = t.startsWith('M') ? 'MUNICIPAL' : (t.startsWith('E') ? 'ESTADUAL' : '');
+    const prio = t.endsWith('P') ? 'P' : 'N';
+    lastCalledElement.textContent = origem ? `${origem} ${prio}${numero}` : `${t}${numero}`;
+    return;
+  }
+
+  // fallback
+  if (senha.senha) lastCalledElement.textContent = senha.senha;
 });
