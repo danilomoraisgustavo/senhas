@@ -30,6 +30,24 @@ atualizarDataHora();
 // Armazena as últimas senhas
 let ultimasSenhas = [];
 
+// Mapeia tipo -> texto exibido (compatível com tipos antigos)
+function tituloPorTipo(tipo) {
+    const t = (tipo || '').toString().trim().toUpperCase();
+
+    // Compatibilidade com o modelo antigo
+    if (t === 'N') return 'NORMAL MUNICIPAL';
+    if (t === 'P') return 'PREFERENCIAL MUNICIPAL';
+
+    const map = {
+        EN: 'NORMAL ESTADUAL',
+        EP: 'PREFERENCIAL ESTADUAL',
+        MN: 'NORMAL MUNICIPAL',
+        MP: 'PREFERENCIAL MUNICIPAL'
+    };
+
+    return map[t] || 'ATENDIMENTO';
+}
+
 // Quando chega uma nova senha chamada
 socket.on('senhaChamada', (data) => {
     // Se o som estiver habilitado, reproduz alerta
@@ -40,12 +58,10 @@ socket.on('senhaChamada', (data) => {
         });
     }
 
+    const titulo = tituloPorTipo(data.tipo);
+
     // Define o título conforme tipo
-    if (data.tipo === 'P') {
-        tipoSenhaTitulo.textContent = 'PREFERENCIAL';
-    } else {
-        tipoSenhaTitulo.textContent = 'ATEND. NORMAL';
-    }
+    tipoSenhaTitulo.textContent = titulo;
 
     // Exibe número e sala | mesa
     senhaNumeroElement.textContent = data.numero;
@@ -53,7 +69,7 @@ socket.on('senhaChamada', (data) => {
 
     // Adiciona ao array das últimas senhas (no início)
     ultimasSenhas.unshift({
-        tipo: tipoSenhaTitulo.textContent,
+        tipo: titulo,
         numero: data.numero,
         sala: data.sala || '?',
         mesa: data.mesa || '?'
